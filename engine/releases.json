@@ -1,0 +1,76 @@
+{
+  "version": "b11412",
+  "source": "https://github.com/ggml-org/llama.cpp/releases/tag/b11412",
+  "packages": {
+    "linux-x86_64-cpu": {
+      "asset": "llama-b11412-bin-ubuntu-x64.tar.gz",
+      "size": 17679327,
+      "sha256": "003606fa1b32b7e5a262c17fa66c71492f1db372c08523bf6a9f5caf60d2f9da"
+    },
+    "linux-x86_64-vulkan": {
+      "asset": "llama-b11412-bin-ubuntu-vulkan-x64.tar.gz",
+      "size": 31623834,
+      "sha256": "2a903ef59be493802f7042e2b9ccdfc80c6269834d5fb0254436f7c4da979c48"
+    },
+    "linux-aarch64-cpu": {
+      "asset": "llama-b11412-bin-ubuntu-arm64.tar.gz",
+      "size": 13673883,
+      "sha256": "685ead65efbe7e4dd54269154435bd4bcee9ef82efbeabf54d8ac0b32d810917"
+    },
+    "linux-aarch64-vulkan": {
+      "asset": "llama-b11412-bin-ubuntu-vulkan-arm64.tar.gz",
+      "size": 24833595,
+      "sha256": "80844c01de8d99fe1ac1f50b1734fd23a105e97ef8f5b1751180958efad47df0"
+    },
+    "linux-x86_64-cuda": {
+      "asset": "llama-b11412-bin-ubuntu-cuda-12.8-x64.tar.gz",
+      "size": 171724360,
+      "sha256": "aadf8bb69bf0f5418b56a1b50545039cc240f946a26ec9bf96ab210bd882340b",
+      "runtime": {
+        "asset": "cudart-llama-b11412-bin-ubuntu-cuda-12.8-x64.tar.gz",
+        "size": 594377638,
+        "sha256": "5b3df8685b5563c6360fd081d524eb5f67bde9cc2f6dbc9745563acc1bc739f2"
+      }
+    },
+    "windows-x86_64-cpu": {
+      "asset": "llama-b11412-bin-win-cpu-x64.zip",
+      "size": 19390552,
+      "sha256": "fc9931ddbbf79046193f12ca26ac6be67483368486a8996c8a3fd190f70dc156"
+    },
+    "windows-x86_64-vulkan": {
+      "asset": "llama-b11412-bin-win-vulkan-x64.zip",
+      "size": 33308254,
+      "sha256": "a867ab1e85bf963dead5a84a86707cc387248e82733d0855d153e917014a8c98"
+    },
+    "windows-x86_64-cuda": {
+      "asset": "llama-b11412-bin-win-cuda-12.4-x64.zip",
+      "size": 264468211,
+      "sha256": "9c154d7b39f4b8911375ac44b54bd389e00cffc3db7437fa08e3244b2b4a6d13",
+      "runtime": {
+        "asset": "cudart-llama-bin-win-cuda-12.4-x64.zip",
+        "size": 391443627,
+        "sha256": "8c79a9b226de4b3cacfd1f83d24f962d0773be79f1e7b75c6af4ded7e32ae1d6"
+      }
+    },
+    "windows-aarch64-cpu": {
+      "asset": "llama-b11412-bin-win-cpu-arm64.zip",
+      "size": 12221636,
+      "sha256": "81ad66251e1e80140c57f4f5f14dcbc14f5b1768eab2a3f809e0014d69a2638e"
+    },
+    "windows-aarch64-vulkan": {
+      "asset": "llama-b11412-bin-win-vulkan-arm64.zip",
+      "size": 25886144,
+      "sha256": "4a9d07063725e63109af222dbd5d3c742e3bc8dad0aa60d765dec2a80a27b748"
+    },
+    "windows-aarch64-cuda": {
+      "asset": "llama-b11412-bin-win-cuda-13.4-arm64.zip",
+      "size": 145403038,
+      "sha256": "3b27cb7a437b0f72cd5a08532dc7167a3255ff56a6f6441f8a7665553d32b26e",
+      "runtime": {
+        "asset": "cudart-llama-bin-win-cuda-13.4-arm64.zip",
+        "size": 153262407,
+        "sha256": "642dcde8805b3e3165ca710a5443b3b4044b27d96bd3ee3132473988c9bcb774"
+      }
+    }
+  }
+}

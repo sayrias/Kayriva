@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kayriva-desktop"
+version = "1.0.0-beta.1"
+description = "Private native desktop workspace for local models and MCP tools"
+requires-python = ">=3.11"
+dependencies = ["PySide6>=6.8,<7", "httpx>=0.28,<1"]
+
+[project.optional-dependencies]
+transformers = ["torch>=2.6", "transformers>=5.2", "accelerate>=1.0", "safetensors>=0.5", "bitsandbytes>=0.45"]
+package = ["pyinstaller>=6"]
+
+[project.scripts]
+kayriva = "ai_studio.__main__:main"
+ai-studio = "ai_studio.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["ai_studio*"]
+
+[tool.setuptools.package-data]
+ai_studio = ["ui/assets/*.svg", "ui/assets/*.ttf", "ui/assets/*LICENSE*"]

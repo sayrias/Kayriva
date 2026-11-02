@@ -1,0 +1,57 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+runtime/*
+!runtime/.gitkeep
+models/*
+!models/catalog.json
+!models/.gitkeep
+engine/bin/*
+!engine/bin/.gitkeep
+engine/vendor/
+engine/build/
+dist/
+build/
+
+# Private tooling, notes and wiki import exports (not application source).
+/.local/
+/.agents/
+/.codex/
+/.aws/
+/.impeccable/
+wiki-bundle*.json
+
+# Personal configuration, credentials and imported research (never distribution data).
+.env
+.env.*
+!.env.example
+!.env.sample
+*.pem
+*.key
+credentials*.json
+secrets*.json
+.mcp.json
+/gemini deepresearch.txt
+/disk-kullanim-raporu-*.md
+/disk-temizlik-sonucu-*.md
+
+# Local AI weights and engine downloads, including files imported outside models/.
+*.gguf
+*.safetensors
+*.onnx
+*.bin.part
+*.download
+*.part
+
+# Test/developer output; source catalogs, plans and documentation remain tracked.
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+coverage.xml
+.venv-*/
+*.log
+/screenshots/
+.impeccable/review/
