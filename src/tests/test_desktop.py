@@ -281,7 +281,8 @@ class DesktopTests(unittest.TestCase):
             self.assertEqual(threads.itemData(threads.count()-1), 12)
             self.assertEqual(threads.findData(24), -1)
         layers = self.window.settings_fields['gpu_layers']
-        self.assertEqual(layers.itemData(layers.count()-1), 28)
+        self.assertEqual(layers.slider.maximum(), 28)
+        self.assertEqual(layers.number.maximum(), 28)
         context = self.window.settings_fields['context']
         self.assertEqual(context.itemData(context.count()-1), 8192)
         context.setCurrentIndex(context.findData(512))

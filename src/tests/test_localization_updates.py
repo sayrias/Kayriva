@@ -61,9 +61,19 @@ class LocalizationUpdatesTests(unittest.TestCase):
         w.settings_fields['language'].setCurrentIndex(w.settings_fields['language'].findData('tr'))
         w.save_settings()
         self.assertEqual(w.input.toPlainText(), draft)
-        self.assertEqual(w.page_title.text(), 'New chat')  # restart applies language
+        self.assertEqual(w.page_title.text(), 'Yeni sohbet')
+        self.assertEqual(w.preference_nav.item(5).text(), 'Hakkında')
+        self.assertEqual(w.settings_fields['acceleration'].itemText(0), 'GPU + RAM · otomatik paylaşım')
         self.assertEqual(Config(self.root).settings.language, 'tr')
-        self.assertIn('next time', w.status_label.text())
+        self.assertEqual(w.status_label.text(), 'Dil değiştirildi')
+        w.settings_fields['language'].setCurrentIndex(w.settings_fields['language'].findData('en'))
+        w.save_settings()
+        self.assertEqual(w.page_title.text(), 'New chat')
+        self.assertEqual(w.preference_nav.item(5).text(), 'About')
+        self.assertIn('Hello', w.welcome_title.text())
+        self.assertEqual(w.input.toPlainText(), draft)
+        w.settings_fields['language'].setCurrentIndex(w.settings_fields['language'].findData('tr'))
+        w.save_settings()
         w.input.clear()
         w.close()
         self.window = Window(Config(self.root))
@@ -156,3 +166,106 @@ class LocalizationUpdatesTests(unittest.TestCase):
         self.assertIsNone(about.staged)
         self.assertTrue(about.notes.isHidden())
         self.assertTrue(about.release_button.isHidden())
+
+    def test_live_language_preserves_chat_editor_filters_and_custom_instructions(self):
+        from ai_studio.ui.widgets import Message
+        from PySide6.QtCore import Qt
+        from PySide6.QtWidgets import QListWidgetItem
+        w = self.window
+        chat = w.history.create('Yeni sohbet')  # A user title identical to a UI key.
+        content = 'Ayarlar / Settings / Yeni sohbet'
+        w.history.append(chat, [{'role': 'user', 'content': content}, {'role': 'assistant', 'content': content}])
+        item = QListWidgetItem('Yeni sohbet'); item.setData(Qt.ItemDataRole.UserRole, chat)
+        w.select_chat(item)
+        draft = 'unsubmitted / gönderilmemiş'
+        w.input.setPlainText(draft)
+        w.system_edit.setPlainText('My custom instruction: Türkçe yanıt ver.')
+        w.attachments = [{'name': 'Ayarlar.txt', 'text': content}]
+        w.editor.setPlainText('print("Yeni sohbet")')
+        w.reset_model_filters()
+        w.model_brands.setCurrentIndex(w.model_brands.findData('NVIDIA'))
+        original_messages = w.history.messages(chat)
+        for lang in ('tr', 'en'):
+            w.settings_fields['language'].setCurrentIndex(w.settings_fields['language'].findData(lang))
+            w.save_settings()
+            self.assertEqual(w.page_title.text(), 'Yeni sohbet')
+            self.assertEqual(w.current, chat)
+            self.assertEqual(w.history.messages(chat), original_messages)
+            self.assertEqual([m.text for m in w.findChildren(Message)], [content, content])
+            self.assertEqual(w.input.toPlainText(), draft)
+            self.assertEqual(w.editor.toPlainText(), 'print("Yeni sohbet")')
+            self.assertEqual(w.attachments[0]['name'], 'Ayarlar.txt')
+            self.assertEqual(w.system_edit.toPlainText(), 'My custom instruction: Türkçe yanıt ver.')
+            self.assertEqual(w.model_brands.currentData(), 'NVIDIA')
+            self.assertEqual(w.chat_search.placeholderText(), 'Sohbetlerde ara…' if lang == 'tr' else 'Search chats…')
+        w.input.clear(); w.attachments.clear(); w.editor.clear()
+
+    def test_translation_bindings_do_not_guess_plain_user_values(self):
+        from ai_studio.ui.localized import QLabel, retranslate
+        from ai_studio.ui.widgets import button, Message
+        from PySide6.QtWidgets import QWidget
+        root = QWidget()
+        control = button(tr('Kaydet')); control.setParent(root)
+        bound = QLabel('prefix · ' + tr('Ayarlar'), root)
+        plain = QLabel('Ayarlar', root)
+        replaced = QLabel(tr('Ayarlar'), root); replaced.setText('Ayarlar')
+        stamp = QLabel(Message.duration(65), root)
+        set_language('tr'); retranslate(root)
+        self.assertEqual(control.text(), 'Kaydet')
+        self.assertEqual(bound.text(), 'prefix · Ayarlar')
+        self.assertEqual(stamp.text(), '1 dk 5 sn')
+        set_language('en'); retranslate(root)
+        self.assertEqual(control.text(), 'Save')
+        self.assertEqual(bound.text(), 'prefix · Settings')
+        self.assertEqual(plain.text(), 'Ayarlar')
+        self.assertEqual(replaced.text(), 'Ayarlar')
+        self.assertEqual(stamp.text(), '1 min 5 s')
+        root.deleteLater()
+
+    def test_layer_control_and_searchable_brands_stay_bounded(self):
+        from ai_studio.ui.widgets import LayerControl
+        layers = LayerControl()
+        layers.setMaximumLayers(512)
+        self.assertEqual(layers.value(), -1)
+        self.assertFalse(layers.slider.isEnabled())
+        layers.setValue(500)
+        self.assertEqual(layers.currentData(), 500)
+        self.assertTrue(layers.slider.isEnabled())
+        layers.setMaximumLayers(80)
+        self.assertEqual(layers.value(), 80)
+        layers.number.setValue(0)
+        self.assertEqual(layers.value(), 0)
+        layers.automatic.setChecked(True)
+        self.assertEqual(layers.value(), -1)
+        layers.deleteLater()
+        picker = self.window.model_brands
+        self.assertEqual(picker.count(), 19)
+        picker.completer().setCompletionPrefix('vid')
+        self.assertEqual(picker.completer().completionCount(), 1)
+        self.assertEqual(picker.completer().currentCompletion(), 'NVIDIA')
+        self.assertLessEqual(picker.view().maximumHeight(), 330)
+
+    def test_extension_filters_keep_selection_and_require_credentials_before_enable(self):
+        from ai_studio.extension_library import requirement
+        panel = ExtensionBrowser(self.window)
+        panel.type_filter.setCurrentIndex(panel.type_filter.findData('remote'))
+        self.assertEqual(panel.list.count(), 7)
+        panel.list.setCurrentRow(2)
+        chosen = panel.selected_entry['id']
+        panel.refresh()
+        self.assertEqual(panel.selected_entry['id'], chosen)
+        panel.type_filter.setCurrentIndex(panel.type_filter.findData('local'))
+        self.assertEqual(panel.list.count(), 10)
+        panel.search.setText('Brave')
+        self.assertEqual(panel.selected_entry['id'], 'brave-search')
+        panel.enable.setChecked(True)
+        with patch.dict(os.environ, {}, clear=True), patch.object(self.window, 'run_task') as install:
+            self.assertIn('BRAVE_API_KEY', requirement(panel.selected_entry))
+            panel.install()
+            install.assert_not_called()
+            self.assertIn('environment', panel.status.text())
+        panel.search.setText('does-not-exist')
+        self.assertIsNone(panel.selected_entry)
+        panel.search.clear()
+        self.assertTrue(panel.status.text() == '' or 'environment' not in panel.status.text())
+        panel.deleteLater()

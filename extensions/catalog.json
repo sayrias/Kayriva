@@ -2,14 +2,227 @@
   "schema": 1,
   "verified": "2026-11-02",
   "entries": [
-    {"id":"filesystem","name":"Proje dosyaları","publisher":"Model Context Protocol","category":"Dosyalar","description":"Seçtiğin klasörde dosya arama, okuma, düzenleme ve klasör işlemleri.","source":"https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem","kind":"npm","package":"@modelcontextprotocol/server-filesystem","workspace":true,"args":["{workspace}"],"permissions":"Seçilen klasörde okuma, yazma, taşıma ve silme. Sunucu ayrı bir yerel süreçtir."},
-    {"id":"markitdown","name":"Belge, PDF, tablo ve sunu okuma","publisher":"Microsoft · MarkItDown","category":"Belgeler","description":"PDF, DOCX, XLSX ve PPTX içeriklerini modelin okuyabileceği metne dönüştürür. Belge oluşturma veya biçim düzenleme aracı değildir.","source":"https://github.com/microsoft/markitdown/tree/main/packages/markitdown-mcp","kind":"python","package":"markitdown-mcp","entry":"markitdown-mcp","permissions":"Bu sunucu kullanıcının okuyabildiği yerel dosyaları ve internet adreslerini okuyabilir. İşletim sistemi erişimini klasörle sınırlamaz."},
-    {"id":"playwright","name":"Tarayıcı ile araştırma","publisher":"Microsoft · Playwright","category":"Araştırma","description":"Sayfaları açma, bağlantıları izleme, formları inceleme ve tarayıcı otomasyonu.","source":"https://github.com/microsoft/playwright-mcp","kind":"npm","package":"@playwright/mcp","args":["--headless"],"permissions":"Tarayıcı üzerinden internete erişir; formlar ve oturum açılmış sayfalarda işlem yapabilir. Tarayıcı motoru ayrıca gerekli olabilir."},
-    {"id":"fetch","name":"Web sayfasını oku","publisher":"Model Context Protocol","category":"Araştırma","description":"Bir internet sayfasının içeriğini metne çevirip okur; genel web araması yerine verilen adresi getirir.","source":"https://github.com/modelcontextprotocol/servers/tree/main/src/fetch","kind":"python","package":"mcp-server-fetch","entry":"mcp-server-fetch","permissions":"İnternet adreslerine istek gönderir. Gelen sayfa içerikleri güvenilmeyen veridir."},
-    {"id":"memory","name":"Yerel bilgi belleği","publisher":"Model Context Protocol","category":"Bellek ve plan","description":"Kavramları, ilişkileri ve seçtiğin bilgileri yerel bilgi grafiğinde saklar.","source":"https://github.com/modelcontextprotocol/servers/tree/main/src/memory","kind":"npm","package":"@modelcontextprotocol/server-memory","env":{"MEMORY_FILE_PATH":"{data}/memory.jsonl"},"permissions":"Bilgileri runtime/extensions/memory altında saklar. Yalnızca modele verdiğin bilgiler kaydedilmelidir."},
-    {"id":"sequential-thinking","name":"Adımlarla problem çözme","publisher":"Model Context Protocol","category":"Bellek ve plan","description":"Çözüm adımlarını ve alternatif yaklaşımları bir araç akışında izler. Modelin zekâsını veya gizli düşünme yeteneğini artırma garantisi vermez.","source":"https://github.com/modelcontextprotocol/servers/tree/main/src/sequentialthinking","kind":"npm","package":"@modelcontextprotocol/server-sequential-thinking","env":{"DISABLE_THOUGHT_LOGGING":"true"},"permissions":"Planlama adımlarını çalışan süreçte işler; ayrıca bir dil modeli indirmez."},
-    {"id":"git","name":"Yerel Git işlemleri","publisher":"Model Context Protocol","category":"Geliştirme","description":"Seçtiğin Git deposunda değişiklikleri inceleme, dal, kayıt ve durum işlemleri.","source":"https://github.com/modelcontextprotocol/servers/tree/main/src/git","kind":"python","package":"mcp-server-git","entry":"mcp-server-git","workspace":true,"args":["--repository","{workspace}"],"permissions":"Seçilen Git deposunu okuyabilir ve değiştirebilir. Dizin deponun altındaysa erişim tüm depoyu kapsar."},
-    {"id":"time","name":"Saat ve zaman dilimi","publisher":"Model Context Protocol","category":"Yardımcılar","description":"Güncel saat ve zaman dilimleri arasında dönüşüm araçları.","source":"https://github.com/modelcontextprotocol/servers/tree/main/src/time","kind":"python","package":"mcp-server-time","entry":"mcp-server-time","permissions":"Sistem saati ve zaman dilimi bilgilerini okur."},
-    {"id":"github","name":"GitHub araçları","publisher":"GitHub","category":"Geliştirme","description":"GitHub'ın resmî uzak MCP sunucusu. Kullanılabilir araçlar hesabının izinlerine göre değişir.","source":"https://github.com/github/github-mcp-server","kind":"http","url":"https://api.githubcopilot.com/mcp/","header_env":{"Authorization":"KAYRIVA_GITHUB_AUTHORIZATION"},"permissions":"GitHub'a bağlanır. KAYRIVA_GITHUB_AUTHORIZATION ortam değişkeni Bearer önekiyle tanımlanmalı; anahtar uygulama ayarına kaydedilmez. OAuth ekranı desteklenmez."}
+    {
+      "id": "filesystem",
+      "name": "Filesystem",
+      "publisher": "Model Context Protocol",
+      "category": "Dosyalar",
+      "description": "Seçtiğin klasörde dosya arama, okuma, düzenleme ve klasör işlemleri.",
+      "source": "https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem",
+      "kind": "npm",
+      "package": "@modelcontextprotocol/server-filesystem",
+      "workspace": true,
+      "args": [
+        "{workspace}"
+      ],
+      "permissions": "Seçilen klasörde okuma, yazma, taşıma ve silme. Sunucu ayrı bir yerel süreçtir."
+    },
+    {
+      "id": "markitdown",
+      "name": "MarkItDown",
+      "publisher": "Microsoft · MarkItDown",
+      "category": "Belgeler",
+      "description": "PDF, DOCX, XLSX ve PPTX içeriklerini modelin okuyabileceği metne dönüştürür. Belge oluşturma veya biçim düzenleme aracı değildir.",
+      "source": "https://github.com/microsoft/markitdown/tree/main/packages/markitdown-mcp",
+      "kind": "python",
+      "package": "markitdown-mcp",
+      "entry": "markitdown-mcp",
+      "permissions": "Bu sunucu kullanıcının okuyabildiği yerel dosyaları ve internet adreslerini okuyabilir. İşletim sistemi erişimini klasörle sınırlamaz."
+    },
+    {
+      "id": "playwright",
+      "name": "Playwright",
+      "publisher": "Microsoft · Playwright",
+      "category": "Araştırma",
+      "description": "Sayfaları açma, bağlantıları izleme, formları inceleme ve tarayıcı otomasyonu.",
+      "source": "https://github.com/microsoft/playwright-mcp",
+      "kind": "npm",
+      "package": "@playwright/mcp",
+      "args": [
+        "--headless"
+      ],
+      "permissions": "Tarayıcı üzerinden internete erişir; formlar ve oturum açılmış sayfalarda işlem yapabilir. Tarayıcı motoru ayrıca gerekli olabilir."
+    },
+    {
+      "id": "fetch",
+      "name": "Fetch",
+      "publisher": "Model Context Protocol",
+      "category": "Araştırma",
+      "description": "Bir internet sayfasının içeriğini metne çevirip okur; genel web araması yerine verilen adresi getirir.",
+      "source": "https://github.com/modelcontextprotocol/servers/tree/main/src/fetch",
+      "kind": "python",
+      "package": "mcp-server-fetch",
+      "entry": "mcp-server-fetch",
+      "permissions": "İnternet adreslerine istek gönderir. Gelen sayfa içerikleri güvenilmeyen veridir."
+    },
+    {
+      "id": "memory",
+      "name": "Memory",
+      "publisher": "Model Context Protocol",
+      "category": "Bellek ve plan",
+      "description": "Kavramları, ilişkileri ve seçtiğin bilgileri yerel bilgi grafiğinde saklar.",
+      "source": "https://github.com/modelcontextprotocol/servers/tree/main/src/memory",
+      "kind": "npm",
+      "package": "@modelcontextprotocol/server-memory",
+      "env": {
+        "MEMORY_FILE_PATH": "{data}/memory.jsonl"
+      },
+      "permissions": "Bilgileri runtime/extensions/memory altında saklar. Yalnızca modele verdiğin bilgiler kaydedilmelidir."
+    },
+    {
+      "id": "sequential-thinking",
+      "name": "Sequential Thinking",
+      "publisher": "Model Context Protocol",
+      "category": "Bellek ve plan",
+      "description": "Çözüm adımlarını ve alternatif yaklaşımları bir araç akışında izler. Modelin zekâsını veya gizli düşünme yeteneğini artırma garantisi vermez.",
+      "source": "https://github.com/modelcontextprotocol/servers/tree/main/src/sequentialthinking",
+      "kind": "npm",
+      "package": "@modelcontextprotocol/server-sequential-thinking",
+      "env": {
+        "DISABLE_THOUGHT_LOGGING": "true"
+      },
+      "permissions": "Planlama adımlarını çalışan süreçte işler; ayrıca bir dil modeli indirmez."
+    },
+    {
+      "id": "git",
+      "name": "Git",
+      "publisher": "Model Context Protocol",
+      "category": "Geliştirme",
+      "description": "Seçtiğin Git deposunda değişiklikleri inceleme, dal, kayıt ve durum işlemleri.",
+      "source": "https://github.com/modelcontextprotocol/servers/tree/main/src/git",
+      "kind": "python",
+      "package": "mcp-server-git",
+      "entry": "mcp-server-git",
+      "workspace": true,
+      "args": [
+        "--repository",
+        "{workspace}"
+      ],
+      "permissions": "Seçilen Git deposunu okuyabilir ve değiştirebilir. Dizin deponun altındaysa erişim tüm depoyu kapsar."
+    },
+    {
+      "id": "time",
+      "name": "Time",
+      "publisher": "Model Context Protocol",
+      "category": "Yardımcılar",
+      "description": "Güncel saat ve zaman dilimleri arasında dönüşüm araçları.",
+      "source": "https://github.com/modelcontextprotocol/servers/tree/main/src/time",
+      "kind": "python",
+      "package": "mcp-server-time",
+      "entry": "mcp-server-time",
+      "permissions": "Sistem saati ve zaman dilimi bilgilerini okur."
+    },
+    {
+      "id": "github",
+      "name": "GitHub",
+      "publisher": "GitHub",
+      "category": "Geliştirme",
+      "description": "GitHub'ın resmî uzak MCP sunucusu. Kullanılabilir araçlar hesabının izinlerine göre değişir.",
+      "source": "https://github.com/github/github-mcp-server",
+      "kind": "http",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "header_env": {
+        "Authorization": "KAYRIVA_GITHUB_AUTHORIZATION"
+      },
+      "permissions": "GitHub'a bağlanır. KAYRIVA_GITHUB_AUTHORIZATION ortam değişkeni Bearer önekiyle tanımlanmalı; anahtar uygulama ayarına kaydedilmez. OAuth ekranı desteklenmez."
+    },
+    {
+      "id": "deepwiki",
+      "name": "DeepWiki",
+      "publisher": "Cognition · DeepWiki",
+      "category": "Geliştirme",
+      "description": "Herkese açık depoların dokümantasyon yapısını ve içeriğini okur, depo hakkında kaynak bağlamlı sorular sorar.",
+      "source": "https://docs.devin.ai/work-with-devin/deepwiki-mcp",
+      "kind": "http",
+      "url": "https://mcp.deepwiki.com/mcp",
+      "permissions": "Depo adları ve sorular uzak hizmete gönderilir. Kimlik doğrulama gerekmez; özel depolara erişim sağlamaz."
+    },
+    {
+      "id": "microsoft-learn",
+      "name": "Microsoft Learn",
+      "publisher": "Microsoft",
+      "category": "Dokümantasyon",
+      "description": "Resmî Microsoft dokümanlarını ve kod örneklerini arar; makalelerin tamamını getirir.",
+      "source": "https://learn.microsoft.com/en-us/training/support/mcp",
+      "kind": "http",
+      "url": "https://learn.microsoft.com/api/mcp",
+      "permissions": "Arama sorguları ve makale adresleri Microsoft Learn hizmetine gönderilir. Yerel dosyalara erişmez."
+    },
+    {
+      "id": "cloudflare-docs",
+      "name": "Cloudflare Documentation",
+      "publisher": "Cloudflare",
+      "category": "Dokümantasyon",
+      "description": "Cloudflare ürünlerinin güncel referans dokümanlarında arama yapar.",
+      "source": "https://developers.cloudflare.com/agents/model-context-protocol/cloudflare/servers-for-cloudflare/",
+      "kind": "http",
+      "url": "https://docs.mcp.cloudflare.com/mcp",
+      "permissions": "Sorular Cloudflare dokümantasyon hizmetine gönderilir. Cloudflare hesabında yönetim işlemleri yapmaz."
+    },
+    {
+      "id": "cloudflare-agents",
+      "name": "Cloudflare Agents SDK",
+      "publisher": "Cloudflare",
+      "category": "Dokümantasyon",
+      "description": "Cloudflare Agents SDK dokümanlarını araştırmak için odaklı bir referans sunucusu.",
+      "source": "https://developers.cloudflare.com/agents/model-context-protocol/cloudflare/servers-for-cloudflare/",
+      "kind": "http",
+      "url": "https://agents.cloudflare.com/mcp",
+      "permissions": "Dokümantasyon sorgularını Cloudflare hizmetine gönderir. Uygulama dağıtmaz ve hesap kaynaklarını yönetmez."
+    },
+    {
+      "id": "context7",
+      "name": "Context7",
+      "publisher": "Upstash",
+      "category": "Dokümantasyon",
+      "description": "Kütüphaneleri bulur ve sürüm bağlamına uygun dokümanlar ile kod örnekleri getirir.",
+      "source": "https://github.com/upstash/context7",
+      "kind": "http",
+      "url": "https://mcp.context7.com/mcp",
+      "permissions": "Kütüphane adları ve sorular Upstash hizmetine gönderilir. Daha yüksek limitler için isteğe bağlı API anahtarı kullanılabilir."
+    },
+    {
+      "id": "hugging-face",
+      "name": "Hugging Face",
+      "publisher": "Hugging Face",
+      "category": "Araştırma",
+      "description": "Hub içeriğinde model, veri kümesi ve doküman araştırması. Anahtarsız bağlantıda yalnızca herkese açık araçlar kullanılabilir.",
+      "source": "https://huggingface.co/docs/hub/agents-mcp",
+      "kind": "http",
+      "url": "https://huggingface.co/mcp",
+      "permissions": "Sorgular Hugging Face hizmetine gönderilir. Özel içerik ve hesap işlemleri kimlik doğrulama gerektirir; bu bağlantı hesap anahtarı içermez."
+    },
+    {
+      "id": "brave-search",
+      "name": "Brave Search",
+      "publisher": "Brave",
+      "category": "Araştırma",
+      "description": "Brave Search API ile web, görsel, video ve haber araması. Node.js 22+ ve kendi API anahtarın gerekir.",
+      "source": "https://github.com/brave/brave-search-mcp-server",
+      "kind": "npm",
+      "package": "@brave/brave-search-mcp-server",
+      "args": [
+        "--transport",
+        "stdio"
+      ],
+      "required_env": [
+        "BRAVE_API_KEY"
+      ],
+      "permissions": "Arama sorguları Brave hizmetine gönderilir. BRAVE_API_KEY ortam değişkenini tanımla; hizmet planına göre ücret veya kullanım sınırı uygulanabilir."
+    },
+    {
+      "id": "tavily",
+      "name": "Tavily",
+      "publisher": "Tavily",
+      "category": "Araştırma",
+      "description": "Web araması, sayfa içeriği çıkarma, site haritası ve tarama araçları. Kendi Tavily API anahtarın gerekir.",
+      "source": "https://github.com/tavily-ai/tavily-mcp",
+      "kind": "npm",
+      "package": "tavily-mcp",
+      "required_env": [
+        "TAVILY_API_KEY"
+      ],
+      "permissions": "Sorgular ve taranacak adresler Tavily hizmetine gönderilir. TAVILY_API_KEY ortam değişkenini tanımla; hizmet planına göre ücret veya kullanım sınırı uygulanabilir."
+    }
   ]
 }

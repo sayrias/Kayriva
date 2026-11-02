@@ -6,15 +6,18 @@ from ..i18n import tr
 
 from PySide6.QtCore import Qt, QUrl
 from PySide6.QtGui import QDesktopServices
-from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QFileDialog, QFormLayout,
-                              QHBoxLayout, QLineEdit, QListWidget, QListWidgetItem, QPlainTextEdit,
-                              QSplitter, QTabWidget, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (
+    QApplication, QFileDialog, QHBoxLayout, QVBoxLayout
+)
+from .localized import QWidget, QCheckBox, QLineEdit, QPlainTextEdit, QListWidget, QListWidgetItem, QFormLayout, QSplitter, QTabWidget, QComboBox
+
 
 from ..extension_library import ExtensionLibrary, requirement
 from ..github_service import GitHubService, github_url
 from ..integrations import export_configuration, import_configuration
 from .icons import icon
-from .widgets import InlineDialog, button, label
+from .widgets import InlineDialog, button, label, ChoiceBox
+from .localized import QScrollArea, QFrame, FilterTabs
 
 
 def _surfaces(window):
@@ -48,7 +51,7 @@ class ExtensionBrowser(QWidget):
         self.search.setPlaceholderText(tr('Eklenti, yayıncı veya özellik ara…'))
         self.search.setClearButtonEnabled(True)
         self.search.setAccessibleName(tr('Eklenti ara'))
-        self.category = QComboBox()
+        self.category = ChoiceBox()
         self.category.addItem(tr('Tüm alanlar'), '')
         for category in dict.fromkeys(entry['category'] for entry in self.library.entries):
             self.category.addItem(tr(category), category)
@@ -57,20 +60,41 @@ class ExtensionBrowser(QWidget):
         top.addWidget(self.search, 1)
         top.addWidget(self.category)
         layout.addLayout(top)
+        filters = QHBoxLayout()
+        self.count_label = label('', 'status')
+        self.count_label.setWordWrap(False)
+        self.type_filter = FilterTabs()
+        for title, value in [(tr('Tümü'), ''), (tr('Yerel'), 'local'), (tr('Uzak'), 'remote'), (tr('Eklenenler'), 'installed')]:
+            self.type_filter.addItem(title, value)
+        self.type_filter.setAccessibleName(tr('Eklenti bağlantı türü'))
+        filters.addWidget(self.type_filter)
+        filters.addStretch()
+        filters.addWidget(self.count_label)
+        layout.addLayout(filters)
         split = QSplitter(Qt.Orientation.Horizontal)
         split.setChildrenCollapsible(False)
         self.list = QListWidget()
         self.list.setAccessibleName(tr('Eklenti kütüphanesi'))
         self.list.setMinimumWidth(210)
-        self.list.setSpacing(3)
+        self.list.setSpacing(4)
+        self.list.setObjectName('extensionList')
+        self.list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.list.setTextElideMode(Qt.TextElideMode.ElideRight)
         split.addWidget(self.list)
-        self.details = QWidget()
+        self.detail_scroll = QScrollArea()
+        self.detail_scroll.setWidgetResizable(True)
+        self.detail_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        self.detail_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.details = QFrame()
+        self.details.setObjectName('extensionDetails')
+        self.detail_scroll.setWidget(self.details)
         detail = QVBoxLayout(self.details)
-        detail.setContentsMargins(16, 4, 0, 0)
+        detail.setContentsMargins(18, 16, 18, 16)
         detail.setSpacing(10)
         self.title = label(tr('Bir eklenti seç'), "brand")
         self.publisher = label("", "status")
         self.description = label("")
+        self.connection_kind = label('', 'pill')
         self.access = label("", "status")
         self.requirements = label("", "status")
         self.workspace = QLineEdit(window.config.settings.workspace)
@@ -87,7 +111,14 @@ class ExtensionBrowser(QWidget):
         self.command.setReadOnly(True)
         self.command.setMaximumHeight(78)
         self.command.setAccessibleName(tr('Kurulum kaynağı'))
-        for field in (self.title, self.publisher, self.description, self.access, self.requirements, self.workspace_row, self.command, self.enable):
+        for field in (self.connection_kind, self.title, self.publisher, self.description):
+            detail.addWidget(field, alignment=Qt.AlignmentFlag.AlignLeft) if field is self.connection_kind else detail.addWidget(field)
+        detail.addSpacing(8)
+        detail.addWidget(label(tr('Erişim ve kapsam'), 'subtitle'))
+        detail.addWidget(self.access)
+        detail.addWidget(label(tr('Gereksinimler'), 'subtitle'))
+        detail.addWidget(self.requirements)
+        for field in (self.workspace_row, self.command, self.enable):
             detail.addWidget(field)
         detail.addStretch()
         actions = QHBoxLayout()
@@ -97,8 +128,13 @@ class ExtensionBrowser(QWidget):
         actions.addWidget(self.source)
         actions.addStretch()
         actions.addWidget(self.install_button)
-        detail.addLayout(actions)
-        split.addWidget(self.details)
+        self.detail_panel = QWidget()
+        right = QVBoxLayout(self.detail_panel)
+        right.setContentsMargins(0, 0, 0, 0)
+        right.setSpacing(10)
+        right.addWidget(self.detail_scroll, 1)
+        right.addLayout(actions)
+        split.addWidget(self.detail_panel)
         split.setSizes([280, 470])
         layout.addWidget(split, 1)
         self.status = label("", "status")
@@ -114,28 +150,45 @@ class ExtensionBrowser(QWidget):
         note = label(tr("Bu kütüphanede bağımsız MCP sunucuları bulunur. Her aracın kapsamı, erişim gereksinimleri ve kurulum koşulları açıklamasında yazılıdır."), "status")
         layout.addWidget(note)
         self.search.textChanged.connect(self.refresh)
-        self.category.currentTextChanged.connect(self.refresh)
+        self.category.currentIndexChanged.connect(self.refresh)
+        self.type_filter.currentChanged.connect(self.refresh)
         self.list.currentItemChanged.connect(self.select)
         self.refresh()
 
     def refresh(self):
+        selected_id = self.selected_entry['id'] if self.selected_entry else None
+        self.list.blockSignals(True)
         self.list.clear()
         query = self.search.text().casefold().strip()
         category = self.category.currentData()
         installed = {spec.get("library_id") for spec in self.window.config.settings.mcp_servers}
-        for entry in self.library.entries:
+        selected_row = 0
+        kind = self.type_filter.currentData()
+        for entry in sorted(self.library.entries, key=lambda entry: entry['name'].casefold()):
+            if kind == 'installed' and entry['id'] not in installed:
+                continue
+            if kind == 'remote' and entry['kind'] != 'http' or kind == 'local' and entry['kind'] == 'http':
+                continue
             if category and entry["category"] != category:
                 continue
             if query and query not in " ".join(tr(str(entry.get(k, ""))) for k in ("name", "publisher", "description", "category")).casefold():
                 continue
-            item = QListWidgetItem(tr(entry["name"]) + "\n" + (tr('Eklendi · ') if entry["id"] in installed else "") + entry["publisher"])
+            item = QListWidgetItem(entry["name"] + "\n" + (tr('Eklendi · ') if entry["id"] in installed else "") + tr(entry['category']))
+            item.setToolTip(entry['name'] + '\n' + tr(entry['description']))
             item.setData(Qt.ItemDataRole.UserRole, entry)
-            item.setIcon(icon("file" if entry["category"] == 'Belgeler' else "tools"))
+            glyph = {'Dosyalar': 'folder', 'Belgeler': 'file', 'Araştırma': 'globe', 'Bellek ve plan': 'book', 'Geliştirme': 'code', 'Yardımcılar': 'clock', 'Dokümantasyon': 'book'}.get(entry['category'], 'tools')
+            item.setIcon(icon(glyph))
             self.list.addItem(item)
-        self.details.setVisible(bool(self.list.count()))
+            if entry['id'] == selected_id:
+                selected_row = self.list.count()-1
+        self.list.blockSignals(False)
+        self.count_label.setText(tr('{visible} / {total} eklenti · {installed} eklendi', visible=self.list.count(), total=len(self.library.entries), installed=len(installed & {e['id'] for e in self.library.entries})))
+        self.detail_panel.setVisible(bool(self.list.count()))
         if self.list.count():
-            self.list.setCurrentRow(0)
+            self.list.setCurrentRow(selected_row)
+            self.select(self.list.currentItem())
         else:
+            self.selected_entry = None
             self.status.setText(tr('Eşleşen eklenti bulunamadı. Aramanı veya alan filtresini değiştir.'))
 
     def select(self, item, previous=None):
@@ -143,10 +196,11 @@ class ExtensionBrowser(QWidget):
             self.selected_entry = None
             return
         entry = self.selected_entry = item.data(Qt.ItemDataRole.UserRole)
-        self.title.setText(tr(entry["name"]))
+        self.connection_kind.setText(tr('Uzak MCP · HTTPS') if entry['kind'] == 'http' else tr('Yerel MCP · Node.js') if entry['kind'] == 'npm' else tr('Yerel MCP · Python'))
+        self.title.setText(entry["name"])
         self.publisher.setText(entry["publisher"] + " · " + tr(entry["category"]))
         self.description.setText(tr(entry["description"]))
-        self.access.setText(tr('Erişim: ') + tr(entry["permissions"]))
+        self.access.setText(tr(entry["permissions"]))
         required = requirement(entry)
         prefix = 'Ortam değişkeni gerekli: '
         self.requirements.setText(tr(prefix) + required[len(prefix):] if required.startswith(prefix) else tr(required))
@@ -174,7 +228,7 @@ class ExtensionBrowser(QWidget):
             self.status.setText(tr('Kurulum için internet gerekli. Genel ayarlardan çevrimdışı modu kapat.'))
             return
         ident, workspace, enabled = entry["id"], self.workspace.text().strip(), self.enable.isChecked()
-        if enabled and entry["kind"] == "http" and any(not os.environ.get(name) for name in entry.get('header_env', {}).values()):
+        if enabled and any(not os.environ.get(name) for name in [*entry.get('header_env', {}).values(), *entry.get('required_env', [])]):
             self.status.setText(tr('Önce gerekli ortam değişkenini tanımla veya etkinleştirmeden ekle.'))
             return
         self.install_button.setEnabled(False)

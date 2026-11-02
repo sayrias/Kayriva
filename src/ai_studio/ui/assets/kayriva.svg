@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-labelledby="title">
+  <title id="title">Kayriva</title>
+  <rect x="8" y="8" width="240" height="240" rx="52" fill="#22252d"/>
+  <rect x="8.75" y="8.75" width="238.5" height="238.5" rx="51.25" fill="none" stroke="#383c48" stroke-width="1.5"/>
+  <g transform="translate(32 22) scale(8)" fill="none" stroke="#c9bcec" stroke-width="1.65" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M4 19V9l8-6 8 6v10M8 17V11l4-3 4 3v6M4 19l8-6 8 6M12 13v8"/>
+  </g>
+</svg>

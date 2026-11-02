@@ -31,7 +31,7 @@ class IntegrationUITests(unittest.TestCase):
     def test_extension_filter_and_empty_state_without_installing(self):
         panel = ExtensionBrowser(self.window)
         self.window.centralWidget().layout()
-        self.assertEqual(panel.list.count(), 9)
+        self.assertEqual(panel.list.count(), 17)
         panel.category.setCurrentText('Belgeler')
         self.assertEqual(panel.list.count(), 1)
         self.assertIn('MarkItDown', panel.publisher.text())

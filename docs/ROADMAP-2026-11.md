@@ -121,10 +121,42 @@ Kaynaklar: [SemVer ön sürümleri](https://semver.org/lang/tr/), [Python sürü
 - [x] İki dilde 940×640 ve 1200×800 arayüz; uzun sürüm notu kaydırma, katalog ve ayarlar görüntülendi. İlk beta Linux paketi; ana ekran/Modeller/Genel/About, 141 kayıt ve bağımsız MCP yardımcısı 1.0.0-beta.1 kontrolünden geçti.
 - [x] Son Windows Setup geçici Wine klasöründe kuruldu; ana ekran/Modeller/Genel/About, 141 kayıt / 18 marka ve MCP yardımcısı `1.0.0-beta.1` kontrolünden geçti. Yeniden kurulum, kaldırma ve ayrı test kullanıcı verisinin korunması doğrulandı. Gerçek yayımlanmış GitHub güncellemesi ve fiziksel Windows PowerShell/GPU davranışı bu geliştirmede denenmiş gibi sunulmaz; servis HTTP senaryoları kontrollü taklitlerledir.
 - [x] Yeniden derlenen iki dağıtımın açılmış içeriğinde 88 uygulama modülü ve toplam 520.239.957 byte tarandı; bilinen gizli anahtar desenlerinde kişisel token bulunmadı. Ayarlar, sohbetler, özel notlar ve wiki dışa aktarımı paketlere dahil değildir. Denetim sonucu özel `.local/wiki/release-audit.json` dosyasındadır.
-- [x] Son yayın manifesti gerçek dağıtım boyutları ve SHA-256 değerleriyle üretildi. Linux tek dosya: 148.309.032 byte; Windows Setup: 35.521.673 byte. `dist/SHA256SUMS` ve `dist/update-manifest.json` yayın dosyalarıyla eşleşir. İlk beta için önceki yayın tabanı olmadığı için fark dosyası üretilmez.
+- [x] Son yayın manifesti gerçek dağıtım boyutları ve SHA-256 değerleriyle üretildi. Linux tek dosya: 148.313.344 byte; Windows Setup: 35.521.673 byte. `dist/SHA256SUMS` ve `dist/update-manifest.json` yayın dosyalarıyla eşleşir. İlk beta için önceki yayın tabanı olmadığı için fark dosyası üretilmez.
 
 ## Yayın metinlerinin sadeleştirilmesi
 
 - [x] README, iki dilde sürüm notları, kullanım belgeleri, wiki paketi ve eklenti açıklamalarındaki harici asistan/hizmet karşılaştırmaları genel ifadelerle değiştirildi. Özgün araştırma notu özel `.local/notes` klasöründe korundu.
 - [x] İş bölümünde uygulama adları yerine JSON/TOML bağlantı biçimi seçilir. Tercih dilden bağımsız kimlikle saklanır; eski profillerin TOML çıktısı korunur. İki çıktı biçimi ve profil geçişleri test edildi. Desteklenen model kimlikleri, güvenlik dışlama yolları ve gerçek servis uçları korunur.
 - [x] 193 test geçti (47,3 sn); genel metin taraması, README bağlantıları ve 51 sayfalık wiki doğrulaması başarılı. İki platform yeniden derlendi ve güncelleme manifesti yenilendi.
+
+## Linux uygulama kimliği ve ikon
+
+- [x] Paket ilk normal açılışta kullanıcı uygulamalar menüsüne kalıcı masaüstü kaydı ve SVG ikon ekler. `io.github.sayrias.Kayriva` kimliği Qt masaüstü adıyla eşleşir; X11 sınıfı `Kayriva` olur. Kaynak kod ve ekran görüntüsü çalıştırmaları menüye kayıt yapmaz.
+- [x] Kısayol geçici çıkarma dizinine değil gerçek çalıştırılabilir dosyaya gider; dosyayı taşıdıktan sonra açmak aynı kaydı günceller. Kullanıcı dizini salt okunursa uygulama açılır ve hata yerel günlüğe kaydedilir. `--install-desktop` pencere açmadan kayıt yapabilir.
+- [x] 197 test geçti (48,6 sn). Gerçek masaüstü ayrıştırıcısıyla Türkçe/boşluk/özel karakterli yoldan başlatma, kalıcı ikon, taşınan dosya, tekrar kayıt ve Qt uygulama kimliği doğrulandı.
+- [x] Yeniden derlenen Linux tek dosyası geçici X11 ekranında açıldı: ana pencere adı/sınıfı, pencere ikonu, normal açılışta menü kaydı, kalıcı ikon ve masaüstü dosyası doğrulaması geçti. Gerçek kullanıcının menüsüne veya çalışan uygulamasına dokunulmadı. Wayland masaüstünde elle doğrulama yapılmış gibi sunulmaz.
+- [x] Linux güncelleme manifesti ve SHA-256 kayıtları yeniden üretildi; Windows paketi bu Linux düzeltmesi sırasında değiştirilmedi.
+
+## Linux dosya yöneticisi ikonu
+
+- [x] Menü/pencere ikonundan bağımsız olarak yayımlanan `Kayriva` dosya adına özel kullanıcı MIME tanımı eklendi: `application/x-kayriva-executable`, yerelleştirilmiş dosya türü ve uygulama ikonu. Dosya içeriği/ELF başlığı değiştirilmez.
+- [x] Derleme bitiminde ve paket ilk açıldığında MIME önbelleği sistem aracıyla güncellenir; kaynak metadata değişmediyse önbellek yeniden yazılmaz. Sistem aracında hata veya eksiklik olması menü kaydını ve açılışı engellemez.
+- [x] 199 test geçti (49,6 sn). Dosya türü, ikon çözümleme, farklı adlı yürütülebilir dosyanın korunması, önbellek tekrar kullanımı ve yardımcı araç bulunmadığında açılış davranışı kontrol edildi.
+- [x] Kullanıcının dosya yöneticisi için mevcut kayıt uygulandı. KDE `kmimetypefinder`, gerçek dağıtım dosyasını özel türle tanıdı; `kiconfinder6` kullanıcıya ait kalıcı SVG ikonunu buldu. Başka bilgisayarda aynı yerel metadata ilk açılışta kurulur; adı değiştirilmeden kullanılan dosya için geçerlidir.
+- [x] Linux tek dosya yeniden derlendi; paketin geçici kullanıcı veri alanında MIME tanımını ve kalıcı ikonu kurması, KDE ile tanınması doğrulandı. Güncelleme manifesti ve SHA-256 kayıtları yenilendi.
+
+## Linux arşivi ve dağıtım uyumluluğu
+
+- [x] Mevcut uygulama ve içindeki bağımsız köprü dahil 435 ELF nesnesinin GLIBC sembol gereksinimleri incelendi. Bu x86_64 derlemenin alt sınırı glibc 2.43'tür; bütün dağıtımlarda çalışma veya eski glibc/musl/ARM desteği iddia edilmez. Daha eski hedefler için daha eski tabanda ayrı derleme gerekir.
+- [x] `Kayriva-1.0.0-beta.1-linux-x86_64.tar.gz` üretildi: aynı uygulama, ikon, kısa kurulum rehberi, uyumluluk JSON'u, font lisansı, klasör ikonu ve dosya SHA-256 kayıtları. Yedi sabit dosyalık liste kişisel veri, sohbet ve modelleri içermez.
+- [x] `kayriva.sh archive-linux` ve menüde 12. seçenek eklendi. Linux derlemesi ve yayın hazırlığı da arşiv üretir; yayın SHA dosyası arşivi kapsar. Otomatik uygulama güncellemesi mevcut tek dosyalı çalıştırılabilir dosyayı kullanır.
+- [x] Arşiv çıkarıldı, izinler ve dosya özetleri doğrulandı; içindeki uygulamanın sürüm komutu çalıştı. Tekrar üretim aynı arşiv SHA-256 değerini verdi; eski sürüm derlemesini paketleme isteği reddedildi. README bağlantıları ve shell sözdizimi kontrol edildi.
+- [x] Linux gereksinimleri, İngilizce/Türkçe yayın metni ve wiki güncellendi. `.tar.gz` sıkıştırmasının sistem uyumluluğunu değiştirmediği açıkça belirtilir. Başka dağıtımlarda gerçek çalışma testi yapılmış gibi sunulmaz.
+
+## 2 Kasım · Dil ve eklenti kütüphanesi düzeltmeleri
+
+- [x] English/Türkçe kaydedildiği anda mevcut arayüze uygulanır. Sohbet, taslak, özel talimat, dosya içeriği ve filtre kimlikleri korunur. Bilinen varsayılan talimat metni arayüz dilinde gösterilir; özel metinler çevrilmez.
+- [x] GPU katmanı için otomatik mod + model sınırına bağlı kaydırıcı/sayı alanı. Markalar için aranabilir, yüksekliği sınırlı seçim listesi. Dar pencerede form satırlarının yatay taşması giderildi.
+- [x] 17 MCP bağlantısı: gerçek adlar ve alfabetik liste; Tümü/Yerel/Uzak/Eklenenler sekmeleri; alan filtresi, arama ve korunmuş seçim. Ayrıntılar kaydırılırken kaynak ve kurulum eylemleri görünür kalır.
+- [x] Yeni bağlantılar resmî kaynaklarla karşılaştırıldı. API anahtarı isteyen yerel sunucular anahtar eksikken etkin olarak eklenemez. Bu çalışma yeni MCP paketlerini kurmadı veya ücretli araç çağrısı yapmadı.
+- [x] 203 test geçti. EN/TR masaüstü ve 940×640 kompakt ekranları geçici verilerle incelendi. Linux ve Wine/Windows derlemeleri, Linux arşivi, güncelleme manifesti ve SHA-256 dosyaları yenilendi.

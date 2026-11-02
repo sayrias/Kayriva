@@ -49,12 +49,14 @@ Model compatibility and performance depend on your hardware and runtime. Larger 
 
 ## Get started
 
-1. **Open Kayriva.** On Windows, run `Kayriva-Setup.exe`. On Linux, make `Kayriva` executable and launch it:
+1. **Open Kayriva.** On Windows, run `Kayriva-Setup.exe`. On Linux, extract the archive if needed, then make `Kayriva` executable and launch it:
 
    ```bash
    chmod +x Kayriva
    ./Kayriva
    ```
+
+   On its first launch, the Linux app adds **Kayriva** to your applications menu.
 
 2. **Choose a model.** Open **Settings → Models** to download one, or select **Add local model** to use your existing files.
 3. **Prepare the runtime.** Under **Settings → General → Local runtime**, choose CPU, Vulkan or NVIDIA CUDA. Kayriva can install a missing runtime from the list.
@@ -72,8 +74,8 @@ Choose how operations are approved, adjust reply display and memory settings, an
   <img src="docs/assets/local-workflow.svg" width="1120" alt="Project files pass through Kayriva to a local model. Web and MCP tools participate in the workflows you enable." />
 </p>
 
-[Model guide](docs/models.md) · [Tools and integrations](docs/integrations.md) · [Assistant profiles](docs/team.md) · [Build from source](docs/development.md)
+[Linux requirements](docs/linux-distribution.md) · [Model guide](docs/models.md) · [Tools and integrations](docs/integrations.md) · [Assistant profiles](docs/team.md) · [Build from source](docs/development.md)
 
-*Detailed user guides are currently available in Turkish.*
+*Model and integration guides are currently available in Turkish.*
 
 Source-code license: not yet selected. Models, fonts and third-party components retain their respective licenses.

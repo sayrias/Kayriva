@@ -16,6 +16,7 @@ Kayriva — tek dosyadan yönetim
   ./kayriva.sh start [arg...]  Uygulamayı kaynak koddan aç
   ./kayriva.sh setup           Linux Python ortamını ve bağımlılıkları kur
   ./kayriva.sh build           Linux tek dosyalı uygulamasını derle
+  ./kayriva.sh archive-linux   Mevcut Linux paketinden .tar.gz arşivi üret
   ./kayriva.sh run [arg...]    Derlenmiş Linux uygulamasını aç
   ./kayriva.sh setup-windows   Wine içinde Windows Python ve bağımlılıkları kur
   ./kayriva.sh build-windows   Wine üzerinden Windows Setup.exe derle
@@ -26,8 +27,8 @@ Kayriva — tek dosyadan yönetim
   ./kayriva.sh status          Ortam ve çıktı konumlarını göster
   ./kayriva.sh help            Bu açıklamayı göster
 
-Çıktılar: dist/linux/Kayriva ve dist/windows/Kayriva-Setup.exe
-Her platform için yalnızca bu tek dosyayı dağıt. Windows kurulumu kısayol ekler.
+Çıktılar: dist/linux/Kayriva, Linux .tar.gz ve dist/windows/Kayriva-Setup.exe
+Linux arşivi aynı uygulamayı içerir; sistem uyumluluğunu değiştirmez.
 Ayarlar ve indirilen modeller kullanıcı veri klasöründe korunur.
 Model ağırlıkları, sohbetler ve kurulu motorlar pakete kopyalanmaz.
 Kurulum internet gerektirir. Sistem paketleri / sudo kullanılmaz.
@@ -123,7 +124,18 @@ build_linux() {
         --add-binary "$kayriva_root/build/linux/helpers/KayrivaBridge:helpers" \
         "$kayriva_root/build/entries/Kayriva.py" 2>&1 | tee "$kayriva_root/build/linux/build.log"
     record_build linux "$kayriva_root/dist/linux/Kayriva" "$(uname -m)"
+    if [[ "${KAYRIVA_SKIP_FILE_ICON:-0}" != 1 ]]; then
+        if ! PYTHONPATH="$kayriva_root/src" "$kayriva_python" -c 'from ai_studio.desktop import install_file_icon; raise SystemExit(0 if install_file_icon() else 1)'; then
+            printf 'Dosya ikonu bu ortamda kaydedilemedi; uygulama ilk açılışta yeniden deneyecek.\n' >&2
+        fi
+    fi
+    archive_linux
     printf '\nLinux tek dosyalı uygulama hazır: %s/dist/linux/Kayriva\n' "$kayriva_root"
+}
+
+archive_linux() {
+    check_python
+    "$kayriva_python" "$kayriva_root/scripts/package_linux.py" --root "$kayriva_root"
 }
 
 wine_env() {
@@ -301,11 +313,12 @@ print(version)
 PY
 )"
     linux_arch="$("$kayriva_python" -c 'import json,sys; print(json.load(open(sys.argv[1]))["architecture"])' "$kayriva_root/dist/linux/build-info.json")"
+    archive_linux
     PYTHONPATH="$kayriva_root/src${PYTHONPATH:+:$PYTHONPATH}" "$kayriva_python" -m ai_studio.updater manifest \
         --version "$version" --output "$kayriva_root/dist/update-manifest.json" \
         --artifact "linux:$linux_arch:portable=$kayriva_root/dist/linux/Kayriva" \
         --artifact "windows:x86_64:installer=$kayriva_root/dist/windows/Kayriva-Setup.exe" "$@"
-    (cd -- "$kayriva_root" && sha256sum dist/linux/Kayriva dist/windows/Kayriva-Setup.exe > dist/SHA256SUMS)
+    (cd -- "$kayriva_root" && sha256sum dist/linux/Kayriva dist/windows/Kayriva-Setup.exe "dist/linux/Kayriva-$version-linux-$linux_arch.tar.gz" > dist/SHA256SUMS)
     printf '\nYayın dosyaları hazır: dist/update-manifest.json ve platform paketleri.\n'
 }
 
@@ -345,6 +358,7 @@ dispatch() {
         start) start_app "$@" ;;
         setup) setup_linux ;;
         build|build-linux) build_linux ;;
+        archive-linux) archive_linux ;;
         run) run_package "$@" ;;
         setup-windows) setup_windows ;;
         build-windows) build_windows ;;
@@ -362,12 +376,12 @@ if [[ $# -gt 0 ]]; then
     dispatch "$@"
 elif [[ -t 0 ]]; then
     while true; do
-        printf '\nKayriva\n  1) Başlat\n  2) Linux bağımlılıklarını kur\n  3) Linux tek dosya derle\n  4) Derlenmiş uygulamayı aç\n  5) Windows ortamını kur (Wine)\n  6) Windows Setup.exe derle (Wine)\n  7) Testleri çalıştır\n  8) Durum\n  9) Windows paketini aç (Wine)\n  10) Derleme çıktılarını temizle\n  11) Güncelleme yayın dosyalarını hazırla\n  0) Çıkış\n'
+        printf '\nKayriva\n  1) Başlat\n  2) Linux bağımlılıklarını kur\n  3) Linux tek dosya derle\n  4) Derlenmiş uygulamayı aç\n  5) Windows ortamını kur (Wine)\n  6) Windows Setup.exe derle (Wine)\n  7) Testleri çalıştır\n  8) Durum\n  9) Windows paketini aç (Wine)\n  10) Derleme çıktılarını temizle\n  11) Güncelleme yayın dosyalarını hazırla\n  12) Linux .tar.gz arşivi üret\n  0) Çıkış\n'
         read -r -p 'Seçim: ' kayriva_choice || break
         case "$kayriva_choice" in
             1) dispatch start ;; 2) dispatch setup ;; 3) dispatch build ;; 4) dispatch run ;;
             5) dispatch setup-windows ;; 6) dispatch build-windows ;; 7) dispatch test ;; 8) dispatch status ;;
-            9) dispatch run-windows ;; 10) dispatch clean ;; 11) dispatch release ;; 0) break ;; *) printf '0–11 arasında bir seçenek gir.\n' ;;
+            9) dispatch run-windows ;; 10) dispatch clean ;; 11) dispatch release ;; 12) dispatch archive-linux ;; 0) break ;; *) printf '0–12 arasında bir seçenek gir.\n' ;;
         esac
     done
 else

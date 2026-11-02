@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/x-kayriva-executable">
+    <comment>Kayriva application</comment>
+    <comment xml:lang="tr">Kayriva uygulaması</comment>
+    <sub-class-of type="application/x-executable"/>
+    <icon name="io.github.sayrias.Kayriva"/>
+    <generic-icon name="application-x-executable"/>
+    <glob pattern="Kayriva" weight="80" case-sensitive="true"/>
+  </mime-type>
+</mime-info>

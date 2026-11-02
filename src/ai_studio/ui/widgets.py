@@ -3,9 +3,13 @@ import math
 import time
 from PySide6.QtCore import QRect, Qt, Signal, QTimer, QUrl, QSize, QPropertyAnimation, QPoint, QEasingCurve, QEventLoop, QEvent
 from PySide6.QtGui import QDesktopServices, QPainter, QColor, QRadialGradient, QBrush, QPainterPath, QPen, QFontMetricsF, QTextCursor, QTextBlockFormat, QFont
-from PySide6.QtWidgets import QWidget, QFrame, QLabel, QVBoxLayout, QHBoxLayout, QPushButton, QPlainTextEdit, QTextBrowser, QSizePolicy, QGraphicsOpacityEffect, QSlider, QCheckBox, QScrollArea, QStyledItemDelegate, QStyle, QComboBox, QListView, QAbstractItemView
+from PySide6.QtWidgets import (
+    QCompleter, QVBoxLayout, QHBoxLayout, QSizePolicy, QGraphicsOpacityEffect, QStyledItemDelegate, QStyle, QListView, QAbstractItemView
+)
 from .icons import icon
 from ..memory_units import GIB, MB, memory_text, memory_detail
+from .localized import QLineEdit, QSpinBox, QWidget, QFrame, QLabel, QPushButton, QCheckBox, QPlainTextEdit, QTextBrowser, QScrollArea, QSlider, QComboBox
+
 
 
 class MemorySlider(QWidget):
@@ -138,7 +142,8 @@ def button(text, slot=None, primary=False, icon_name=None):
         if glyph in text:
             icon_name = icon_name or name
             text = text.replace(glyph, "").strip()
-    text = text.replace("→", "").strip()
+    if "→" in text:
+        text = text.replace("→", "").strip()
     item = QPushButton(text)
     if icon_name:
         item.setIcon(icon(icon_name, "#302443" if primary else "#c8bbed"))
@@ -171,11 +176,100 @@ class ChoiceBox(QComboBox):
         super().__init__(parent)
         view = QListView(self)
         view.setUniformItemSizes(True)
+        view.setMaximumHeight(330)
         view.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
         view.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setView(view)
         self.setMaxVisibleItems(10)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
+
+
+class BrandPicker(ChoiceBox):
+    """One bounded, searchable list instead of an overflowing brand tab strip."""
+    def __init__(self):
+        super().__init__()
+        self.setEditable(True)
+        self.setLineEdit(QLineEdit())
+        self.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+        self.setMinimumWidth(180)
+        self.setMaximumWidth(260)
+        self.setAccessibleName(tr('Model markası'))
+        self.lineEdit().setPlaceholderText(tr('Marka ara…'))
+        self.completer().setFilterMode(Qt.MatchFlag.MatchContains)
+        self.completer().setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+        self.completer().setCompletionMode(QCompleter.CompletionMode.PopupCompletion)
+        self.completer().setMaxVisibleItems(8)
+        self.lineEdit().editingFinished.connect(self.restore_selection)
+
+    def restore_selection(self):
+        self.setEditText(self.itemText(max(0, self.currentIndex())))
+
+
+class LayerControl(QWidget):
+    """Automatic offload or an exact layer count, without an unbounded popup."""
+    valueChanged = Signal(int)
+
+    def __init__(self):
+        super().__init__()
+        self.limit = 0
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(5)
+        row = QHBoxLayout()
+        self.automatic = QCheckBox(tr('Otomatik'))
+        self.automatic.setChecked(True)
+        self.automatic.setToolTip(tr('Bellek bütçesine göre GPU katmanlarını motor seçer.'))
+        self.number = QSpinBox()
+        self.number.setRange(0, 0)
+        self.number.setAccessibleName(tr('GPU katman sayısı'))
+        self.number.setMinimumWidth(90)
+        row.addWidget(self.automatic)
+        row.addStretch()
+        row.addWidget(self.number)
+        layout.addLayout(row)
+        self.slider = QSlider(Qt.Orientation.Horizontal)
+        self.slider.setObjectName('memorySlider')
+        self.slider.setRange(0, 0)
+        self.slider.setAccessibleName(tr('GPU katman sayısı'))
+        self.slider.setMinimumHeight(22)
+        layout.addWidget(self.slider)
+        self.note = label(tr('Katman sınırı seçili modelden okunur.'), 'status')
+        layout.addWidget(self.note)
+        self.number.valueChanged.connect(self.change_number)
+        self.slider.valueChanged.connect(self.number.setValue)
+        self.automatic.toggled.connect(self.toggle_auto)
+        self.toggle_auto(True)
+
+    def value(self):
+        return -1 if self.automatic.isChecked() else self.number.value()
+
+    def currentData(self):
+        return self.value()
+
+    def setValue(self, value):
+        blocked = self.blockSignals(True)
+        self.automatic.setChecked(value < 0)
+        self.number.setValue(max(0, value))
+        self.blockSignals(blocked)
+
+    def setMaximumLayers(self, maximum):
+        self.limit = max(0, int(maximum))
+        self.number.setMaximum(self.limit)
+        self.slider.setMaximum(self.limit)
+        self.number.setSuffix(' / ' + str(self.limit) if self.limit else '')
+        self.number.setSpecialValueText(tr('Model seç') if not self.limit else '')
+        self.note.setText(tr('0: CPU · En fazla {count} GPU katmanı.', count=self.limit) if self.limit else tr('Katman sınırı seçili modelden okunur.'))
+        self.toggle_auto(self.automatic.isChecked(), emit=False)
+
+    def change_number(self, value):
+        self.slider.setValue(value)
+        self.valueChanged.emit(self.value())
+
+    def toggle_auto(self, automatic, emit=True):
+        self.number.setEnabled(not automatic and self.limit > 0)
+        self.slider.setEnabled(not automatic and self.limit > 0)
+        if emit:
+            self.valueChanged.emit(self.value())
 
 
 class ProjectItemDelegate(QStyledItemDelegate):
@@ -759,7 +853,7 @@ class Message(QFrame):
     @staticmethod
     def duration(seconds):
         seconds=max(0,int(seconds))
-        return f"{seconds // 60}{tr(' dk ')}{seconds % 60}{tr(' sn')}" if seconds>=60 else f"{seconds}{tr(' sn')}"
+        return str(seconds // 60)+tr(' dk ')+str(seconds % 60)+tr(' sn') if seconds>=60 else str(seconds)+tr(' sn')
 
     def begin(self, display_mode='complete'):
         self.running=True

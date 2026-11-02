@@ -13,12 +13,10 @@ from pathlib import Path
 from PySide6.QtCore import Qt, QTimer, QPoint, QSize, QEvent, QUrl
 from PySide6.QtGui import QFont, QShortcut, QKeySequence, QDesktopServices
 from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QFrame, QLabel, QPushButton, QVBoxLayout, QHBoxLayout,
-    QStackedWidget, QScrollArea, QListWidget, QListWidgetItem, QComboBox, QCheckBox, QPlainTextEdit,
-    QLineEdit, QFormLayout, QFileDialog, QMessageBox, QDialog,
-    QDialogButtonBox, QProgressBar, QSplitter, QTextBrowser,
-    QTreeWidget, QTreeWidgetItem, QMenu, QInputDialog, QGridLayout, QTableWidget, QTableWidgetItem, QHeaderView, QAbstractItemView, QButtonGroup, QSlider, QTabBar, QSpacerItem,
+    QApplication, QVBoxLayout, QHBoxLayout, QFileDialog, QMessageBox, QDialog, QDialogButtonBox, QTreeWidgetItem, QMenu, QInputDialog, QGridLayout, QTableWidgetItem, QHeaderView, QAbstractItemView, QButtonGroup, QTabBar, QSpacerItem
 )
+from .localized import QWidget, QMainWindow, QFrame, QLabel, QPushButton, QCheckBox, QLineEdit, QPlainTextEdit, QTextBrowser, QScrollArea, QProgressBar, QSlider, QListWidget, QListWidgetItem, QFormLayout, QTreeWidget, QTableWidget, QSplitter, QStackedWidget, QComboBox
+
 
 from ..config import Config
 from ..brand import APP_NAME
@@ -37,7 +35,7 @@ from ..workspace import list_files, resolve_file
 from ..model_library import assess, matches
 from ..hardware import detect, cpu_limit, model_limits
 from .style import STYLE
-from .widgets import label, button, card, Message, Input, Welcome, ComposerMenu, ProjectHeader, MenuRow, ModelOption, PreferencesOverlay, InlineDialog, UsageChart, ModelButton, LiveChart, MemorySlider, ProjectItemDelegate, ChoiceBox
+from .widgets import label, button, card, Message, Input, Welcome, ComposerMenu, ProjectHeader, MenuRow, ModelOption, PreferencesOverlay, InlineDialog, UsageChart, ModelButton, LiveChart, MemorySlider, ProjectItemDelegate, ChoiceBox, LayerControl, BrandPicker
 from .icons import icon
 from .workers import TaskWorker, ChatWorker
 from .model_filters import brand as model_brand, capabilities, capability_text, accepts as accepts_model, capacity_tier, TIER_NAMES
@@ -85,7 +83,7 @@ class Window(QMainWindow):
         self.edit_path = None
         self.edit_original = ""
         self.setWindowTitle(APP_NAME + tr(' — Yerel çalışma alanın'))
-        self.setWindowIcon(icon("kayriva"))
+        self.setWindowIcon(QApplication.windowIcon() if sys.platform.startswith('linux') and not QApplication.windowIcon().isNull() else icon("kayriva"))
         self.resize(1280, 850)
         self.setMinimumSize(940, 640)
         self.setStyleSheet(STYLE)
@@ -642,7 +640,7 @@ class Window(QMainWindow):
         self.welcome_suggestions=[]
         for text, prompt, name in [(tr('Birlikte kodlayalım'), tr('Bir proje fikrim var. Önce gereksinimleri birlikte netleştirelim.'), "code"),
                              (tr('Bir konuyu araştır'), tr('Yerel yapay zekâ modellerinde bellek kullanımını araştır.'), "globe")]:
-            b = button(text, lambda checked=False, p=prompt: self.input.setPlainText(p), icon_name=name)
+            b = button(text, lambda checked=False, p=prompt: self.input.setPlainText(tr(p)), icon_name=name)
             b.setObjectName("suggestion")
             b.setMinimumHeight(62)
             self.welcome_suggestions.append(b)
@@ -1439,16 +1437,14 @@ class Window(QMainWindow):
         layout.addWidget(self.model_hardware)
         self.model_path_label = label('', 'status')
         self.model_path_label.hide()
-        self.model_brands = QTabBar()
-        self.model_brands.setObjectName('modelBrands')
-        self.model_brands.setExpanding(False)
-        self.model_brands.setUsesScrollButtons(True)
-        self.model_brands.setDrawBase(False)
-        self.model_brands.setFixedHeight(36)
-        self.model_brands.addTab(tr('Tümü'))
-        self.model_brands.setTabData(0, '')
-        self.model_brands.currentChanged.connect(self.refresh_models)
-        layout.addWidget(self.model_brands)
+        brand_row = QHBoxLayout()
+        brand_row.addWidget(label(tr('Marka'), 'subtitle'))
+        self.model_brands = BrandPicker()
+        self.model_brands.addItem(tr('Tüm markalar'), '')
+        self.model_brands.currentIndexChanged.connect(self.refresh_models)
+        brand_row.addWidget(self.model_brands, 1)
+        brand_row.addStretch()
+        layout.addLayout(brand_row)
         filters = QHBoxLayout()
         self.model_query = QLineEdit()
         self.model_query.setPlaceholderText(tr('Ad, aile veya kuantizasyon ara…'))
@@ -1600,15 +1596,14 @@ class Window(QMainWindow):
         self.clear_layout(self.model_layout)
         catalog = self.model_catalog()
         brands = sorted({model_brand(model) for model in catalog})
-        current_brands = [self.model_brands.tabData(i) for i in range(1, self.model_brands.count())]
+        current_brands = [self.model_brands.itemData(i) for i in range(1, self.model_brands.count())]
         if brands != current_brands:
-            selected_brand = self.model_brands.tabData(self.model_brands.currentIndex())
+            selected_brand = self.model_brands.itemData(self.model_brands.currentIndex())
             self.model_brands.blockSignals(True)
             while self.model_brands.count() > 1:
-                self.model_brands.removeTab(1)
+                self.model_brands.removeItem(1)
             for maker in brands:
-                index = self.model_brands.addTab(maker)
-                self.model_brands.setTabData(index, maker)
+                self.model_brands.addItem(maker, maker)
             self.model_brands.setCurrentIndex(brands.index(selected_brand) + 1 if selected_brand in brands else 0)
             self.model_brands.blockSignals(False)
         s = self.config.settings
@@ -1628,11 +1623,11 @@ class Window(QMainWindow):
         self.model_workflow_hint.setVisible(bool(hint))
         groups = {}
         filtered = [m for m in catalog if matches(m, category, query, self.config.root, s.hardware_ram_gb, s.hardware_vram_gb)]
-        filtered = [m for m in filtered if accepts_model(m, maker=self.model_brands.tabData(self.model_brands.currentIndex()) or '',
+        filtered = [m for m in filtered if accepts_model(m, maker=self.model_brands.itemData(self.model_brands.currentIndex()) or '',
                     capability=capability, tier=tier, maximum_gb=maximum_gb)]
         filtered.sort(key=lambda m: (-assess(m, s.hardware_ram_gb, s.hardware_vram_gb).score, m.get('category') == 'uncensored'))
         local_count = 0
-        if category in {'all', 'installed'} and not capability and not self.model_brands.tabData(self.model_brands.currentIndex()):
+        if category in {'all', 'installed'} and not capability and not self.model_brands.itemData(self.model_brands.currentIndex()):
             known = {(self.config.root / 'models' / m['filename']).resolve() for m in catalog}
             for descriptor in self.local_models():
                 if descriptor.path in known or query not in descriptor.name.casefold():
@@ -1934,7 +1929,8 @@ class Window(QMainWindow):
         self.engine_picker.blockSignals(True)
         self.engine_picker.clear()
         for option in self.engine_choices:
-            self.engine_picker.addItem(option['label'], option['path'])
+            prefix, _, state = option['label'].rpartition(' · ')
+            self.engine_picker.addItem(prefix + ' · ' + tr(state), option['path'])
         if not self.engine_choices:
             self.engine_picker.addItem(tr('Yerel motor bulunamadı'), '')
         self.engine_picker.insertSeparator(self.engine_picker.count())
@@ -2987,7 +2983,7 @@ class Window(QMainWindow):
         language_row.addStretch()
         language_row.addWidget(combo('language', [('English', 'en'), ('Türkçe', 'tr')]))
         layout.addLayout(language_row)
-        layout.addWidget(label(tr('Dil değişikliği uygulamayı yeniden açtığında uygulanır. Sohbetlerin ve taslağın korunur.'), 'status'))
+        layout.addWidget(label(tr('Dil, Kaydet’e bastığında hemen değişir. Sohbetlerin ve taslağın korunur.'), 'status'))
         form.addRow(tr('Motor'), combo("backend", [("llama.cpp · GGUF", "gguf"), (tr('Transformers · yerel Safetensors (ek kurulum)'), "transformers")]))
         engine_row = QHBoxLayout()
         self.engine_picker = ChoiceBox()
@@ -3003,7 +2999,8 @@ class Window(QMainWindow):
         form.addRow(tr('Bellek yaklaşımı'), combo('memory_profile', [(tr('Dengeli'), 'balanced'), (tr('Düşük bellek · diskten eşleme'), 'low_memory')]))
         form.addRow('', label(tr('Düşük bellek: daha küçük çalışma bağlamı, sıkıştırılmış cache ve diske eşlenen ağırlıklar. Büyük modeli hızlandırma garantisi vermez.'), 'status'))
         form.addRow(tr('Bellek kullanımı'), combo("acceleration", [(tr('GPU + RAM · otomatik paylaşım'), "hybrid"), ("CPU + RAM", "cpu"), (tr('GPU · bütün katmanları dene'), "gpu")]))
-        form.addRow(tr('GPU katmanı'), combo("gpu_layers", [(tr('Otomatik'), -1)]))
+        self.settings_fields['gpu_layers'] = LayerControl()
+        form.addRow(tr('GPU katmanı'), self.settings_fields['gpu_layers'])
         form.addRow(tr('Model hazırlığı'),combo('model_residency',[
             (tr('İlk mesajda hazırla'),'lazy'),(tr('Uygulamayla birlikte hazırla'),'always'),(tr('Yanıttan sonra belleği boşalt'),'release')]))
         form.addRow('',label(tr('İlk mesajda: bir kez yüklenir ve açıkken korunur. Uygulamayla birlikte: açılışta hazırlanır. Belleği boşalt: her yanıt sonrası kapatılır. Model veya bağlam değişirse yeniden yükleme gerekebilir.'),'status'))
@@ -3054,7 +3051,7 @@ class Window(QMainWindow):
         box.addWidget(self.memory_hint)
         for name in ['memory_profile','acceleration','gpu_layers','ram_budget_gb','vram_budget_gb','context','kv_cache','max_tokens']:
             field = self.settings_fields[name]
-            signal = field.valueChanged if isinstance(field, MemorySlider) else field.currentIndexChanged
+            signal = field.valueChanged if isinstance(field, (MemorySlider, LayerControl)) else field.currentIndexChanged
             signal.connect(self.update_memory_hint)
         self.settings_fields['ram_budget_gb'].setToolTip(tr('Model için üst sınır. Örneğin 12 GB seçersen ihtiyaç oldukça en fazla 12 GB hedeflenir; baştan ayrılmaz. Diğer uygulamaların kullanımı düşülür. Otomatik, sistem için boş alan bırakır. İşletim sistemi seviyesinde kesin kota değildir.'))
         self.settings_fields['vram_budget_gb'].setToolTip(tr('Modelin GPU belleği için üst sınır. Örneğin 5 GB seçersen en fazla 5 GB hedeflenir; baştan ayrılmaz. Otomatik, ekran ve diğer uygulamalar için boş alan bırakır. Gerçek kullanım motorun bellek yerleşimine bağlıdır.'))
@@ -3105,7 +3102,7 @@ class Window(QMainWindow):
                 field.setText(value)
             else:
                 field.setValue(value)
-        self.system_edit.setPlainText(s.system_prompt)
+        self.system_edit.setPlainText(self.localized_system_prompt(s.system_prompt))
         self.refresh_engines()
         self.update_memory_hint()
 
@@ -3182,7 +3179,7 @@ class Window(QMainWindow):
         limits = model_limits(self.config.model_path())
         self.refill_setting('threads', [(str(n), n) for n in range(1,cpu_limit()+1)])
         layers = limits.get('layers', 0)
-        self.refill_setting('gpu_layers', [(tr('Otomatik'),-1)]+[(str(n), n) for n in range(layers+1)])
+        self.settings_fields['gpu_layers'].setMaximumLayers(layers)
         self.settings_fields['gpu_layers'].setEnabled(self.config.settings.backend == 'gguf')
         self.settings_fields['context'].setToolTip(tr('Sınırsız: bağlam ihtiyaç oldukça büyür; modelin üst sınırı ') + str(limits['context']) + tr(' token. Büyüme sırasında model yeniden yüklenebilir. Her yanıt mevcut çalışma bağlamı ve boş bellekle sınırlıdır.') if 'context' in limits else tr('Model sınırı bilinmiyor; sınırsız için metadata gerekir. Sayısal seçenekler genel ön ayarlardır.'))
         maximum = limits.get('context', 131072)
@@ -3208,7 +3205,10 @@ class Window(QMainWindow):
         context = min(2048, self.settings_fields['context'].itemData(self.settings_fields['context'].count()-1))
         for name, value in {"gpu_layers": -1, "threads": max(1,cpu_limit()//2), "context": context, "max_tokens": min(512, context//2)}.items():
             field = self.settings_fields[name]
-            field.setCurrentIndex(field.findData(value))
+            if isinstance(field, LayerControl):
+                field.setValue(value)
+            else:
+                field.setCurrentIndex(field.findData(value))
         self.hardware_label.setText(tr('Başlangıç ayarı hazır · Kaydet ile uygula'))
 
     def save_settings(self):
@@ -3256,7 +3256,33 @@ class Window(QMainWindow):
         self.apply_model_residency()
         self.status_label.setText(tr('Tercihler kaydedildi') + (tr(' · yeni motor için model seç') if changed_backend else ""))
         if changed_language:
-            self.status_label.setText(tr('Dil kaydedildi · uygulamayı yeniden açınca uygulanır'))
+            self.apply_language()
+            self.status_label.setText(tr('Dil değiştirildi'))
+
+    @staticmethod
+    def localized_system_prompt(prompt):
+        from ..config import Settings
+        from ..ui_i18n import EN
+        original = next(key for key, value in EN.items() if value == Settings().system_prompt)
+        return tr(prompt) if prompt in {original, Settings().system_prompt} else prompt
+
+    def apply_language(self):
+        from .localized import retranslate
+        set_language(self.config.settings.language)
+        retranslate(self)
+        self.system_edit.setPlainText(self.localized_system_prompt(self.config.settings.system_prompt))
+        # Dynamic data is rendered again from stable IDs, never from user text.
+        self.refresh_engines()
+        self.refresh_models()
+        self.refresh_memory_sliders()
+        self.update_memory_hint()
+        self.refresh_mcp()
+        self.refresh_jobs()
+        self.refresh_usage()
+        self.update_chat_options()
+        self.navigate(self.pages.currentIndex())
+        for col, title in enumerate([tr('Model'), tr('Girdi'), tr('Çıktı'), tr('İstek')]):
+            self.usage_table.horizontalHeaderItem(col).setText(title)
 
     def check_hardware(self):
         def action(worker):

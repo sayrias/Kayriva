@@ -76,7 +76,7 @@ class ModelLibraryUI(unittest.TestCase):
     def test_brand_task_tier_and_file_size_filters_compose_and_reset(self):
         w = self.window
         self.assertIn('2 model', w.model_count.text())
-        qwen = next(i for i in range(w.model_brands.count()) if w.model_brands.tabData(i) == 'Qwen')
+        qwen = next(i for i in range(w.model_brands.count()) if w.model_brands.itemData(i) == 'Qwen')
         w.model_brands.setCurrentIndex(qwen)
         self.assertIn('1 model', w.model_count.text())
         w.model_task.setCurrentIndex(w.model_task.findData('vision'))

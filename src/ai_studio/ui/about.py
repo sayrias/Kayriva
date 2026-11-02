@@ -6,7 +6,11 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt, QUrl
 from PySide6.QtGui import QDesktopServices
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QFormLayout, QCheckBox, QProgressBar, QTextBrowser, QScrollArea, QFrame
+from PySide6.QtWidgets import (
+    QVBoxLayout, QHBoxLayout
+)
+from .localized import QWidget, QFrame, QCheckBox, QTextBrowser, QScrollArea, QProgressBar, QFormLayout
+
 
 from .. import __version__
 from ..brand import APP_NAME

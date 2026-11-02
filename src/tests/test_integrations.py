@@ -1,3 +1,4 @@
+from urllib.parse import urlparse
 import hashlib
 import json
 import subprocess
@@ -19,10 +20,10 @@ ROOT = Path(__file__).resolve().parents[2]
 class IntegrationTests(unittest.TestCase):
     def test_catalog_sources_and_installers_are_explicit(self):
         entries = load_catalog(ROOT)
-        self.assertGreaterEqual(len(entries), 9)
+        self.assertGreaterEqual(len(entries), 17)
         self.assertEqual(len({entry['id'] for entry in entries}), len(entries))
         for entry in entries:
-            self.assertTrue(entry['source'].startswith('https://github.com/'))
+            self.assertIn(urlparse(entry['source']).hostname, {'github.com', 'docs.devin.ai', 'learn.microsoft.com', 'developers.cloudflare.com', 'huggingface.co'})
             self.assertTrue(entry['permissions'])
 
     def test_import_preserves_argv_without_running_and_disables_servers(self):

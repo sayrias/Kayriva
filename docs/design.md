@@ -82,7 +82,7 @@ Ana sidebar'da grafik dünya korunur; gezinme artık üç açık gruptur: yeni s
 
 Proje ve sohbet satırları aynı native delegate ile 36 px ritimde çizilir. Projelerin klasör simgesi, sohbet adedi ve sağda açılma işareti vardır. İç sohbetler 20 px girinti ve küçük konuşma simgesiyle ayrılır; sabitlenmiş sohbetlerde iğne simgesi korunur. Seçim `#303542`, hover `#22262f`; odak 1 px lavanta çizgidir. Eski native seçim şeridi kullanılmaz. Bir konuşma açıldığında seçim yalnızca onun satırında kalır; liste yenilendiğinde proje içindeki seçili sohbet kaybolmaz.
 
-Açılır seçenekler, native klavye davranışını koruyan `ChoiceBox` üzerinden okunur satırlar ve en fazla on görünür seçenekle açılır. Girdi yüzeyleri nötr grafittir; odak ve seçim lavanta ailesindedir. Ana `QPalette` de aynı renklere taşındığından işletim sisteminin varsayılan yeşil seçimi arada görünmez. Model yayıncı sekmelerinde yatay kaydırma düğmeleri korunur. 940 px pencere genişliğinde arama ve amaç filtresi kullanılabilir kalır; karşılama alanı dikeyde daha sıkı yerleşir.
+Açılır seçenekler, native klavye davranışını koruyan `ChoiceBox` üzerinden okunur satırlar ve en fazla on görünür seçenekle açılır. Girdi yüzeyleri nötr grafittir; odak ve seçim lavanta ailesindedir. Ana `QPalette` de aynı renklere taşındığından işletim sisteminin varsayılan yeşil seçimi arada görünmez. Model markaları, yatay kaydırma okları yerine aranabilir ve yüksekliği sınırlı bir seçim listesinde gösterilir. 940 px pencere genişliğinde arama ve amaç filtresi kullanılabilir kalır; karşılama alanı dikeyde daha sıkı yerleşir.
 
 [Prompts.chat](https://prompts.chat/) ve [Get Prompt Library](https://getpromptlibrary.com/) için incelenen görev gruplama, arama ve doğrudan eylem yaklaşımı burada masaüstü gezinmesine uyarlandı. Site görünümü veya web kart ızgarası kopyalanmadı. Kayriva'nın koyu grafit/lavanta yüzeyleri ve kendi çizgi ikonları korundu.
 
@@ -90,8 +90,15 @@ Doğrulama: kişisel veri içermeyen geçici bir çalışma alanında 1200×800 
 
 ## İlk genel beta · Dil ve güncellemeler
 
-Varsayılan arayüz İngilizcedir; Genel sayfasındaki English/Türkçe seçimi kaydedilir ve sonraki açılışta uygulanır. Çeviri, yalnızca uygulamanın bildiği sabit metinleri ve sınırlı runtime şablonlarını kapsar. Kullanıcı mesajı, model çıktısı, dosya yolu ve özel MCP adı çevrilmez. İngilizce ve Türkçe ondalık bellek gösterimi kendi nokta/virgül biçimini kullanır.
+Varsayılan arayüz İngilizcedir; Genel sayfasındaki English/Türkçe seçimi Kaydet ile hemen uygulanır; açık arayüz nesneleri korunur. Çeviri, yalnızca uygulamanın bildiği sabit metinleri ve sınırlı runtime şablonlarını kapsar. Kullanıcı mesajı, model çıktısı, dosya yolu ve özel MCP adı çevrilmez. İngilizce ve Türkçe ondalık bellek gösterimi kendi nokta/virgül biçimini kullanır.
 
 Altıncı ayar sekmesi kısa **About / Hakkında** adını taşır; sayfa başlığı **About & updates / Hakkında ve güncellemeler** olur. Sürüm, platform, yapılandırılmış GitHub kaynağı ve iki tercih görünür: başlangıç kontrolü ve otomatik indirme. Kontrol ikincil eylemdir; doğrulanmış güncellemenin indirilmesi/yeniden başlatılması lavanta birincil düğmeyle yapılır. Ağ ve 404 hataları aynı sayfada açıklanır; açılışta hata modalı çıkmaz. Uzun sürüm notlarında sayfanın kaydırılabilirliği korunur.
 
 Otomatik indirme, kurulum için otomatik kapanma anlamına gelmez. Görünür yeniden başlatma eylemi; görev, indirme, taslak, eklenmiş dosya ve kaydedilmemiş editör değişikliği varken bekler. Kaynak koddan çalışmada başlangıç kontrolü ve otomatik kurulum kapalıdır. Arayüz 940×640 ve 1200×800 boylarında iki dilde, uzun sürüm notu ve boş/yayınlanmamış kaynak durumlarıyla incelendi. Native Python dosyaları için tasarım taraması yalnız regex kurallarını çalıştırabilir; kontrast ve taşma incelemesi ekran görüntülerinde ayrıca yapılır.
+
+
+## Dil, kapasite seçimi ve eklenti kütüphanesi · 2 Kasım 2026
+
+Çevrilecek arayüz metinleri kaynak anahtarlarına bağlıdır. Dil değişimi açık sohbeti, taslağı, özel talimatları, dosya içeriğini veya filtre kimliklerini yeniden oluşturmaz. Form satırları dar pencerede sarılır; alanlar yatay taşmaz. GPU katmanları Otomatik onayı, kaydırıcı ve sayı alanıyla ayarlanır; üst sınır seçili modelden okunur. Genel açılır listeler sınırlı yükseklikte kaydırılır.
+
+Eklenti listesi alfabetik gerçek adları gösterir: Filesystem, Playwright, MarkItDown ve diğer MCP adları çevrilmez. İkinci satır kısa alan etiketidir. Tümü / Yerel / Uzak / Eklenenler sekmeleri bağlantı kapsamını, alan seçimi kullanım alanını filtreler. Arama, yayıncı ve açıklamaları da kapsar. Sağ tarafta yayıncı, bağlantı türü, açıklama, erişim kapsamı ve gereksinimler bulunur. Ayrıntılar kaydırılabilir; kaynak ve kurulum eylemleri sabit alt sırada kalır. Boş arama sonuçları kurulum başlatamaz. Katalog 17 bağlantı içerir.

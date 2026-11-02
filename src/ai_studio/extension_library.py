@@ -37,6 +37,8 @@ def load_catalog(root: Path) -> list[dict]:
             raise ValueError("Desteklenmeyen eklenti kurulum türü")
         if not entry.get("source", "").startswith("https://"):
             raise ValueError("Eklenti için resmî HTTPS kaynak gerekli")
+        if not isinstance(entry.get('required_env', []), list) or not all(isinstance(key, str) and re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*', key) for key in entry.get('required_env', [])):
+            raise ValueError('Geçersiz ortam değişkeni adı')
         if entry["kind"] != "http":
             pattern = r"(?:@[a-z0-9_.-]+/)?[a-z0-9][a-z0-9_.-]*" if entry["kind"] == "npm" else r"[A-Za-z0-9][A-Za-z0-9_.-]*"
             if not re.fullmatch(pattern, entry.get("package", "")):
@@ -60,6 +62,9 @@ def external_python() -> str | None:
 
 def requirement(entry: dict) -> str:
     kind = entry["kind"]
+    missing = [name for name in entry.get('required_env', []) if not os.environ.get(name)]
+    if missing:
+        return 'Ortam değişkeni gerekli: ' + ', '.join(missing)
     if kind == "npm":
         return "Hazır · Node.js ve npm" if shutil.which("node") and shutil.which("npm") else "Node.js ve npm gerekli"
     if kind == "python":

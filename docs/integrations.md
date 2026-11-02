@@ -53,3 +53,11 @@ GitHub CLI davranışı: [repo create](https://cli.github.com/manual/gh_repo_cre
 ## Doğrulama
 
 `src/tests/test_integrations.py` gerçek geçici Git önizlemesi, `.gitignore`, symlink ve sır hariç tutma, SHA-256 değişiklik reddi, sadece seçili dosyaların snapshot'a alınması, özel görünürlük, ayrı argv ve hatalarda sır gizleme davranışlarını doğrular. Ağ/yayın/üçüncü taraf kurulumları testlerde taklit edilir. `test_integration_ui.py` filtre/boş durum ve hesap/onay/önizleme koşullarını doğrular. Geliştirme sırasında gerçek GitHub hesabında depo açılmadı, sunucu veya paket kurulmadı.
+
+## Kütüphanede gezinme
+
+Katalog 17 bağlantı içerir. Alan filtresinin yanında **Tümü**, **Yerel**, **Uzak** ve **Eklenenler** sekmeleri bulunur. Sol listede eklentilerin gerçek adları, ikinci satırda alanları görünür. Arama ve filtre yenilemesi seçili eklenti görünmeye devam ediyorsa seçimi korur. Ayrıntılar kaydırılabilir; kurulum ve resmî kaynak düğmeleri görünür kalır.
+
+Yeni bağlantılar: [DeepWiki](https://docs.devin.ai/work-with-devin/deepwiki-mcp), [Microsoft Learn](https://learn.microsoft.com/en-us/training/support/mcp), [Cloudflare Docs ve Agents SDK](https://developers.cloudflare.com/agents/model-context-protocol/cloudflare/servers-for-cloudflare/), [Context7](https://github.com/upstash/context7), [Hugging Face](https://huggingface.co/docs/hub/agents-mcp), [Brave Search](https://github.com/brave/brave-search-mcp-server) ve [Tavily](https://github.com/tavily-ai/tavily-mcp). Uzak bağlantı eklemek yerel paket indirmez; sorgular ilgili hizmete gider. Katalog açıklaması her hizmetin kapsamını belirtir.
+
+Brave için `BRAVE_API_KEY`, Tavily için `TAVILY_API_KEY` uygulama başlatılmadan önce ortamda tanımlanır. Bu iki eklenti anahtar eksikken etkin olarak eklenemez; kapalı bağlantı olarak kurulabilir. Brave Node.js 22+ ister. Anahtarlar katalogda, kurulum kaydında veya dışa aktarılan yapılandırmada bulunmaz. Bu katalog genişletmesinde ücretli araç çağrısı veya yeni paket kurulumu yapılmadı; kullanıcı seçimiyle kurulum ve bağlantı testi gerekir.

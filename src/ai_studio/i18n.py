@@ -1,7 +1,8 @@
 """Explicit EN/TR interface messages. Model output, filenames and user text are never translated.
 
 Legacy Turkish source messages are stable translation keys. Only literals deliberately
-wrapped by the UI call this function; language switching takes effect on restart.
+wrapped by the UI call this function. Translation values retain their source keys
+so native controls can be refreshed without translating user content.
 """
 from __future__ import annotations
 
@@ -19,15 +20,37 @@ def language() -> str:
     return _language
 
 
+class Text(str):
+    """A rendered interface string with an explicit, re-renderable source."""
+    def __new__(cls, parts):
+        instance = super().__new__(cls, ''.join(part() if callable(part) else part for part in parts))
+        instance.parts = parts
+        return instance
+
+    def render(self):
+        return Text(self.parts)
+
+    def __add__(self, other):
+        return Text(self.parts + (other.parts if isinstance(other, Text) else (str(other),)))
+
+    def __radd__(self, other):
+        return Text((other.parts if isinstance(other, Text) else (str(other),)) + self.parts)
+
+
 def tr(message: str, **values) -> str:
-    result = EN.get(message, message) if _language == 'en' else TR.get(message, message)
-    if _language == 'en' and result == message:
-        for pattern, replacement in RUNTIME_PATTERNS:
-            match = pattern.fullmatch(message)
-            if match:
-                result = replacement(match) if callable(replacement) else match.expand(replacement)
-                break
-    return result.format(**values) if values else result
+    if isinstance(message, Text) and not values:
+        return message.render()
+    source = str(message)
+    def render():
+        result = EN.get(source, source) if _language == 'en' else TR.get(source, source)
+        if _language == 'en' and result == source:
+            for pattern, replacement in RUNTIME_PATTERNS:
+                match = pattern.fullmatch(source)
+                if match:
+                    result = replacement(match) if callable(replacement) else match.expand(replacement)
+                    break
+        return result.format(**values) if values else result
+    return Text((render,))
 
 
 EN = {
@@ -434,4 +457,6 @@ EN.update(RUNTIME_EN)
 RUNTIME_PATTERNS = [(re.compile(pattern), replacement) for pattern, replacement in PATTERNS]
 from .catalog_i18n import EN as CATALOG_EN
 EN.update({key: value for key, value in CATALOG_EN.items() if key not in EN})
+from .ui_i18n import EN as UI_EN
+EN.update(UI_EN)
 TR = {english: turkish for turkish, english in EN.items()}
