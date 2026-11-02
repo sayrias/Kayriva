@@ -74,7 +74,7 @@ Yerel model ekleme, ana pencerenin içindeki odaklı bir diyalogdur. Dosya, klas
 
 Katalog yenilemesi arayüzü bloke etmeyen ve durdurulabilen bir işlemdir. Mevcut kütüphane bağlantı hatasında korunur. Model indirme kontrolü, indirildi/seçili durumu ve güncel bağlantı metadata'sı birbirinden ayrılır; hiçbir bağlantı için “hiç bozulmaz” sözü verilmez.
 
-Bağlantılar sayfasındaki Eklenti kütüphanesi, bağımsız MCP araçlarını erişim ve gereksinimleriyle sunar. ChatGPT'ye özel eklentilerin doğrudan taşınabildiği iddia edilmez. GitHub proje başlığından, proje menüsünden ve dosya alanından açılır; proje menüsü tıklanan klasörü geçirir. Her iki akış da aynı pencerenin içindeki diyalog desenini kullanır.
+Bağlantılar sayfasındaki Eklenti kütüphanesi, bağımsız MCP araçlarını erişim ve gereksinimleriyle sunar. Başka uygulamalara özel eklentilerin doğrudan taşınabildiği iddia edilmez. GitHub proje başlığından, proje menüsünden ve dosya alanından açılır; proje menüsü tıklanan klasörü geçirir. Her iki akış da aynı pencerenin içindeki diyalog desenini kullanır.
 
 ## 2 Kasım 2026 · Sidebar ve seçim kontrolleri
 

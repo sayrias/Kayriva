@@ -2386,10 +2386,11 @@ class Window(QMainWindow):
         form.addRow(tr('Asistan adı'), self.team_name)
         form.addRow(tr('Rol'), self.team_role)
         self.team_client = ChoiceBox()
-        self.team_client.addItems([tr('MCP istemcisi'), 'Cursor', 'Codex', 'Claude Desktop', tr('Diğer')])
+        self.team_client.addItem('JSON · mcpServers', 'json')
+        self.team_client.addItem('TOML · mcp_servers', 'toml')
         self.team_client.setFixedHeight(32)
-        self.team_client.setToolTip(tr('Bağlantıyı kullanacağın uygulama; seçim otomatik bağlantı kurmaz.'))
-        form.addRow(tr('Bağlanacak uygulama'), self.team_client)
+        self.team_client.setToolTip(tr('İstemcinin MCP ayarlarında desteklediği biçimi seç.'))
+        form.addRow(tr('Bağlantı biçimi'), self.team_client)
         self.team_model = ChoiceBox()
         self.team_model.setFixedHeight(32)
         self.team_model.setToolTip(tr('Bu profilin görevlerini çalıştıracak yerel model'))
@@ -2495,7 +2496,10 @@ class Window(QMainWindow):
         self.team_name.setText(profile['name'])
         self.team_role.setText(profile.get('role', ''))
         self.team_instructions.setPlainText(profile.get('instructions', ''))
-        self.team_client.setCurrentText(profile.get('client', tr('MCP istemcisi')))
+        client = profile.get('client', 'json')
+        # Preserve the export format of profiles saved before format-based choices.
+        client = 'toml' if client in {'toml', 'Codex'} else 'json'
+        self.team_client.setCurrentIndex(self.team_client.findData(client))
         self.refresh_team_models()
         self.team_model.setCurrentIndex(max(0,self.team_model.findData(profile.get('model_path', ''))))
         self.bridge_toggle.blockSignals(True)
@@ -2524,7 +2528,7 @@ class Window(QMainWindow):
             return
         uid = uuid.uuid4().hex[:12]
         self.config.settings.team_profiles.append({'id': uid, 'name': tr('Asistan ') + str(len(self.config.settings.team_profiles)+1),
-            'role': '', 'instructions': '', 'client': tr('MCP istemcisi'), 'model_path': '', 'enabled': False})
+            'role': '', 'instructions': '', 'client': 'json', 'model_path': '', 'enabled': False})
         self.config.settings.team_selected = uid
         self.config.save(); self.publish_profiles(); self.refresh_team_profiles()
 
@@ -2548,7 +2552,7 @@ class Window(QMainWindow):
         dialog = InlineDialog(self.preferences, tr('Asistanını bağla'), 610, 390, [self.preferences.panel])
         instructions = QTextBrowser()
         instructions.setOpenExternalLinks(True)
-        instructions.setMarkdown(tr("**1. Profili hazırla**\nAd, rol, talimat ve yerel modeli seç. Her profil farklı bir görev üstlenebilir.\n\n**2. Bağlantıyı ekle**\nBağlanacak uygulamayı seç, bağlantıyı kopyala ve o uygulamanın MCP ayarlarına ekle. Codex için TOML, diğer seçimler için `mcpServers` JSON üretilir. Codex'te `~/.codex/config.toml` dosyasına ekleyebilirsin.\n\n**3. Görev kabulünü aç**\nKayriva açıkken bu profilin MCP kabulünü etkinleştir. Diğer asistan `ask_local_model` veya `delegate_research` ile görev gönderip sonucu alabilir. Profiller aynı yerel motoru sırayla kullanır.\n\nUygulama seçimi otomatik bağlantı veya kimlik doğrulama yapmaz. Bağlantının profil kimliği görevleri doğru role yönlendirir. Çevrimdışı mod kabulü kapatır. Web araştırması seçili arama sağlayıcısına sorgu gönderir.\n\n[Codex bağlantı belgesi](https://learn.chatgpt.com/docs/extend/mcp)"))
+        instructions.setMarkdown(tr("**1. Profili hazırla**\nAd, rol, talimat ve yerel modeli seç. Her profil farklı bir görev üstlenebilir.\n\n**2. Bağlantıyı ekle**\nİstemcinin desteklediği JSON veya TOML biçimini seç, bağlantıyı kopyala ve istemcinin MCP ayarlarına ekle. JSON çıktısı `mcpServers`, TOML çıktısı `mcp_servers` alanını kullanır.\n\n**3. Görev kabulünü aç**\nKayriva açıkken bu profilin MCP kabulünü etkinleştir. Diğer asistan `ask_local_model` veya `delegate_research` ile görev gönderip sonucu alabilir. Profiller aynı yerel motoru sırayla kullanır.\n\nUygulama seçimi otomatik bağlantı veya kimlik doğrulama yapmaz. Bağlantının profil kimliği görevleri doğru role yönlendirir. Çevrimdışı mod kabulü kapatır. Web araştırması seçili arama sağlayıcısına sorgu gönderir."))
         dialog.body.addWidget(instructions,1)
         dialog.body.addWidget(button(tr('Anladım'), dialog.accept),alignment=Qt.AlignmentFlag.AlignRight)
         dialog.exec(); dialog.deleteLater()
@@ -2560,7 +2564,7 @@ class Window(QMainWindow):
             self.team_status.setText(tr('Bir ad gir; talimatlar en fazla 4000 karakter olabilir.'))
             return False
         profile = self.selected_team_profile()
-        profile.update(name=name, role=self.team_role.text().strip(), instructions=instructions, client=self.team_client.currentText(), model_path=self.team_model.currentData() or "")
+        profile.update(name=name, role=self.team_role.text().strip(), instructions=instructions, client=self.team_client.currentData(), model_path=self.team_model.currentData() or "")
         self.config.settings.team_name = name
         self.config.settings.team_role = self.team_role.text().strip()
         self.config.settings.team_instructions = instructions
@@ -2588,13 +2592,13 @@ class Window(QMainWindow):
         spec = {"command": str(bridge_binary) if frozen else sys.executable,
                 "args": ([] if frozen else ["-m", "ai_studio.bridge"]) + ["--root", str(self.config.root), '--profile', profile['id']],
                 "env": {"PYTHONPATH": str(self.config.root / "src")}}
-        if profile.get('client') == 'Codex':
+        if profile.get('client') == 'toml':
             quote = lambda v: json.dumps(v, ensure_ascii=False)
             text = f'[mcp_servers.{name}]\ncommand = {quote(spec["command"])}\nargs = {quote(spec["args"])}\n\n[mcp_servers.{name}.env]\nPYTHONPATH = {quote(spec["env"]["PYTHONPATH"])}\n'
         else:
             text = json.dumps({'mcpServers': {name: spec}}, ensure_ascii=False, indent=2)
         QApplication.clipboard().setText(text)
-        self.team_connection_status.setText(tr('Bağlantı kopyalandı · ') + profile['client'] + tr(' MCP ayarlarına ekle'))
+        self.team_connection_status.setText(tr('Bağlantı kopyalandı · ') + self.team_client.currentText() + tr(' MCP ayarlarına ekle'))
 
     def create_job(self):
         prompt = self.job_prompt.text().strip()

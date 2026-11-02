@@ -1,6 +1,6 @@
 # Uygulamanın model motoru
 
-Ollama, LM Studio, bulut inference veya üçüncü taraf bir masaüstü uygulaması gerekmez. Native Qt arayüzü Python ile; ağır hesaplama uygulamanın kendi `engine/bin/llama-server` C/C++ süreciyle yapılır. Süreç uygulama tarafından başlatılır/kapatılır; yalnızca loopback adresine bağlanır. Her açılışta rastgele port ve API anahtarı kullanılır. Motor `--offline --no-webui` ile açılır. Yerel HTTP, süreçler arası iletişimdir; herhangi bir bulut API çağrısı değildir.
+Motor uygulama tarafından yönetilir; ayrı bir masaüstü arayüzü veya bulut çıkarım hizmeti gerektirmez. Native Qt arayüzü Python ile; ağır hesaplama uygulamanın kendi `engine/bin/llama-server` C/C++ süreciyle yapılır. Süreç uygulama tarafından başlatılır/kapatılır; yalnızca loopback adresine bağlanır. Her açılışta rastgele port ve API anahtarı kullanılır. Motor `--offline --no-webui` ile açılır. Yerel HTTP, süreçler arası iletişimdir; herhangi bir bulut API çağrısı değildir.
 
 ## Kurulum
 

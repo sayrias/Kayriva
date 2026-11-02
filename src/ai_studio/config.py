@@ -76,7 +76,7 @@ class Config:
         if not self.settings.team_profiles:
             self.settings.team_profiles = [{"id": "default", "name": self.settings.team_name,
                 "role": self.settings.team_role, "instructions": self.settings.team_instructions,
-                "client": "MCP istemcisi", "model_path": "", "enabled": False}]
+                "client": "json", "model_path": "", "enabled": False}]
         if self.settings.team_selected not in {p['id'] for p in self.settings.team_profiles}:
             self.settings.team_selected = self.settings.team_profiles[0]['id']
         hardware = detect()

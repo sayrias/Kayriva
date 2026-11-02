@@ -4,7 +4,7 @@
 
 # Kayriva
 
-Chat with local models, work on project files, research sources and connect tools in one desktop workspace. **Kayriva** is a native Python and Qt application that manages its own **llama.cpp** runtime. No Ollama or LM Studio installation is required.
+Chat with local models, work on project files, research sources and connect tools in one desktop workspace. **Kayriva** is a native Python and Qt application that manages its own **llama.cpp** runtime. The runtime is managed within Kayriva.
 
 **1.0 Beta 1** · First public beta · Linux and Windows · English and Turkish
 
@@ -77,7 +77,7 @@ The catalog includes open-weight families from **NVIDIA, Qwen, DeepSeek, Google,
 
 **A catalog entry is not a guarantee of support in every runtime.** Architecture, quantization and vision support depend on the installed llama.cpp version. Vision models require a matching `mmproj`. The entire catalog has not been tested on physical GPUs.
 
-[Verified catalog and sources](docs/model-catalog-research.md) · [Model and hardware guide](docs/models.md) · [Local/cloud AI research](docs/AI-RESEARCH-2026-11.md)
+[Verified catalog and sources](docs/model-catalog-research.md) · [Model and hardware guide](docs/models.md) · [Local model research](docs/AI-RESEARCH-2026-11.md)
 
 *The detailed guides linked here are currently in Turkish.*
 
@@ -103,7 +103,7 @@ The composer's **+** menu controls workspace tools, research modes and planning.
 
 **Long research** defaults to targets of up to 18 queries, 200 sources and 60 page reads. Scope is configurable up to 48 queries / 400 sources / 160 pages. These are limits, not promised result counts: provider results, access and readability determine actual coverage. Read page text is distinguished from search snippets, and sources are not all dumped into the context. Long mode does not introduce an artificial minimum wait.
 
-**Connections → Extension library** lists independent MCP servers with their capabilities and requirements. Installation is an explicit choice; added connections are disabled by default. Some require a separate Node.js/Python environment. ChatGPT-specific apps are not presented as transferable plugin packages.
+**Connections → Extension library** lists independent MCP servers with their capabilities and requirements. Installation is an explicit choice; added connections are disabled by default. Some require a separate Node.js/Python environment. Extensions from other applications are not automatically compatible; each server’s supported tools and access requirements are listed separately.
 
 The **GitHub** panel requires Git and [GitHub CLI](https://cli.github.com/) and uses the CLI's existing account session. Review repository visibility and selected files before creating/uploading. The project's `.gitignore` is honored; a selected snapshot is uploaded without changing the source project's Git history.
 

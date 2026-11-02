@@ -32,7 +32,7 @@ wiki-bundle*.json
 credentials*.json
 secrets*.json
 .mcp.json
-/gemini deepresearch.txt
+/*deepresearch*.txt
 /disk-kullanim-raporu-*.md
 /disk-temizlik-sonucu-*.md
 

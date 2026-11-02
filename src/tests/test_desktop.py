@@ -421,7 +421,7 @@ class DesktopTests(unittest.TestCase):
         self.assertFalse(window.use_tools.isChecked())
 
 
-    def test_multiple_profiles_route_saved_role_and_export_codex_toml(self):
+    def test_multiple_profiles_route_saved_role_and_export_toml(self):
         import tomllib
         window=self.window
         window.team_name.setText('Araştırmacı');window.team_role.setText('Kaynakları karşılaştır');window.save_team_profile()
@@ -429,11 +429,20 @@ class DesktopTests(unittest.TestCase):
         window.job_prompt.setText('İlk görev');window.create_job()
         window.add_team_profile();second=self.config.settings.team_selected
         self.assertNotEqual(first,second)
-        window.team_name.setText('Editör');window.team_role.setText('Yazımı düzelt');window.team_client.setCurrentText('Codex')
+        window.team_name.setText('Editör');window.team_role.setText('Yazımı düzelt')
+        window.team_client.setCurrentIndex(window.team_client.findData('toml'))
         window.copy_bridge()
         spec=tomllib.loads(QApplication.clipboard().text())['mcp_servers']['ai-studio-'+second]
         self.assertEqual(spec['args'][-2:],['--profile',second])
         self.assertEqual(spec['env']['PYTHONPATH'],str(self.config.root/'src'))
+        self.assertEqual(window.selected_team_profile()['client'], 'toml')
+        window.load_team_profile()
+        self.assertEqual(window.team_client.currentData(), 'toml')
+        window.team_client.setCurrentIndex(window.team_client.findData('json'))
+        window.copy_bridge()
+        spec=json.loads(QApplication.clipboard().text())['mcpServers']['ai-studio-'+second]
+        self.assertEqual(spec['args'][-2:],['--profile',second])
+        self.assertEqual(window.selected_team_profile()['client'], 'json')
         self.assertEqual(window.job_list.item(0).text(),'Görev yok')
         engine=FakeEngine();engine.config=self.config;window.engine=engine
         window.tick_jobs();self.wait_worker(window.job_worker)

@@ -26,7 +26,7 @@ Bağlantılar → **Kütüphane**, yerel modele araç eklemek için hazırlanmı
 | Yardımcı | [Time](https://github.com/modelcontextprotocol/servers/tree/main/src/time) | Saat ve zaman dilimi |
 | Geliştirme | [GitHub'ın resmî MCP sunucusu](https://github.com/github/github-mcp-server) | GitHub hesabının izin verdiği uzak araçlar |
 
-ChatGPT'ye özel Documents, Spreadsheets, PDF ve Presentations eklentileri başka uygulamaya kopyalanan paketler değildir. Katalog bunların aynısıymış gibi davranmaz: belge okuma karşılığı MarkItDown'ın gerçekten sunduğu dönüştürmedir. Kayriva'nın yerel metin/kod dosyası araçları ayrıca kullanılabilir. MarkItDown kullanıcının okuyabildiği dosyalara erişebilir; klasör alanı onun erişimini sınırlıyormuş gibi gösterilmez.
+Başka uygulamalara özel belge, tablo, PDF ve sunum eklentileri doğrudan taşınabilen paketler değildir. Katalog bunların aynısıymış gibi davranmaz: belge okuma karşılığı MarkItDown'ın gerçekten sunduğu dönüştürmedir. Kayriva'nın yerel metin/kod dosyası araçları ayrıca kullanılabilir. MarkItDown kullanıcının okuyabildiği dosyalara erişebilir; klasör alanı onun erişimini sınırlıyormuş gibi gösterilmez.
 
 Uzak GitHub MCP kimlik doğrulaması `KAYRIVA_GITHUB_AUTHORIZATION` ortam değişkeninden tam `Bearer …` başlığı olarak okunur. Anahtar kataloğa/ayar dosyasına yazılmaz. OAuth yönlendirme akışı bu istemcide henüz yoktur. GitHub CLI üzerinden proje yönetimi bu MCP bağlantısından bağımsızdır.
 

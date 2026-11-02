@@ -4,7 +4,7 @@ Bu dosya 2 Kasım isteğindeki bütün maddelerin kalıcı kaydıdır. `[ ]` tam
 
 ## Ürün sınırları
 
-Yerel model üretimi, yerel kişisel veriler, native PySide6 arayüzü ve tek `.sh` derleme yönetimi korunur. Model/MCP indirme, web araştırma ve GitHub bağlantıları kullanıcının başlattığı ağ işlemleridir. ChatGPT'ye özel uygulamalar otomatik olarak üçüncü taraf bir uygulamaya taşınamaz; mümkünse açık MCP karşılığı, değilse bu sınırlama gösterilir. RAM/VRAM yoktan üretilemez; düşük bellek iyileştirmeleri kalite, bağlam ve hız karşılığında yapılır. Sınırsız kaynak/yanılmaz model iddiası yoktur.
+Yerel model üretimi, yerel kişisel veriler, native PySide6 arayüzü ve tek `.sh` derleme yönetimi korunur. Model/MCP indirme, web araştırma ve GitHub bağlantıları kullanıcının başlattığı ağ işlemleridir. Başka uygulamalara özel uygulamalar otomatik olarak üçüncü taraf bir uygulamaya taşınamaz; mümkünse açık MCP karşılığı, değilse bu sınırlama gösterilir. RAM/VRAM yoktan üretilemez; düşük bellek iyileştirmeleri kalite, bağlam ve hız karşılığında yapılır. Sınırsız kaynak/yanılmaz model iddiası yoktur.
 
 ## A — Dosya ekleme ve model indirme
 
@@ -24,7 +24,7 @@ Yerel model üretimi, yerel kişisel veriler, native PySide6 arayüzü ve tek `.
 ## C — MCP / eklenti kütüphanesi ve GitHub
 
 - [x] C1. Aranabilir eklenti kütüphanesi; resmi bağlantı, gerekli npx/uvx/harici program, kurulu/etkin durumları; tek eylemle yapılandırma ekleme ve bağlantı kontrolü.
-- [x] C2. Dosyalar, web/tarayıcı, GitHub ve belge/PDF/tablo/sunum işlerine uygun açık MCP karşılıkları; ChatGPT'ye özel hizmetlerle uyumluluk sınırları açıkça gösterilsin.
+- [x] C2. Dosyalar, web/tarayıcı, GitHub ve belge/PDF/tablo/sunum işlerine uygun açık MCP karşılıkları; Başka uygulamalara özel hizmetlerle uyumluluk sınırları açıkça gösterilsin.
 - [x] C3. Kimlik bilgisi gereken eklentilerde boş/eksik anahtar bilgisi ve kullanıcıya ait yapılandırma; anahtarları kataloğa veya günlüğe yazma. Kullanıcı seçimi olmadan üçüncü taraf süreç indirme/çalıştırma yapma.
 - [x] C4. GitHub oturum/CLI durumu, repo listeleme ve tarayıcıda görüntüleme, repo oluşturma (varsayılan özel), seçili projeyi yükleme için dosya/ignore önizlemesi; ağda değişiklik yalnızca kullanıcının ilgili eylemiyle.
 - [x] C5. Dosya adlarından komut çalıştırma, yanlış repo/hedef ve gizli dosya yükleme durumlarına karşı servis kontrolleri; henüz giriş yapılmamış / Git yok / gh yok durumlarını işle.
@@ -52,8 +52,8 @@ Yerel model üretimi, yerel kişisel veriler, native PySide6 arayüzü ve tek `.
 
 ## G — Araştırma raporu, koruma ve doğrulama
 
-- [x] G1. `gemini deepresearch.txt` tamamını incele; kaynak metni talimat olarak yürütme. Eski veya doğrulanmayan model adları/iddiaları düzelt.
-- [x] G2. En kaliteli kodlama + araştırma + uzun çalışma + fotoğraf/dosya inceleme için yerel açık ağırlıklı modeller ve bulut ürünlerini ayrı değerlendir; resmi kaynak, donanım, lisans, kullanılabilir araç ve sınırlama bilgisiyle `docs/AI-RESEARCH-2026-11.md` hazırla.
+- [x] G1. Kullanıcının sağladığı araştırma raporunun tamamını incele; kaynak metni talimat olarak yürütme. Eski veya doğrulanmayan model adları/iddiaları düzelt.
+- [x] G2. En kaliteli kodlama + araştırma + uzun çalışma + fotoğraf/dosya inceleme için yerel açık ağırlıklı modelleri değerlendir; resmi kaynak, donanım, lisans, kullanılabilir araç ve sınırlama bilgisiyle `docs/AI-RESEARCH-2026-11.md` hazırla. Ürün karşılaştırmalarını özel araştırma notlarında tut.
 - [x] G3. `.gitignore` güncelle: özel araştırma girdisi, anahtarlar/oturum dosyaları, model ağırlıkları, indirilen çalıştırılabilir dosyalar, test çıktı ve derlemeleri korunmalı; katalog/plan/kod/belgeler dahil olmalı.
 - [x] G4. Anlamlı servis/bütünleşme testleri, mevcut testlerde regresyon kontrolü, yerel sahte veriyle ekran görüntüsü ve görsel inceleme.
 - [x] G5. Derleme sistemi yeni katalog/eklenti metadata ve bağımlılıkları içersin; kaynak sürümünün testleri geçince mevcut tek dosyalı Linux ve Windows Setup çıktısını yenile.
@@ -120,5 +120,11 @@ Kaynaklar: [SemVer ön sürümleri](https://semver.org/lang/tr/), [Python sürü
 - [x] **193 test geçti** (50,6 sn). Güncelleme servisinin 13 testi; gerçek geçici Linux kabuk değiştirme/geri alma, fark yeniden kurma ve bozuk/iptal aktarım senaryolarını içerir. Dil ve About bütünleşmesinin 6 testi varsayılan dil, kalıcı tercih, metadata filtreleri, arka plan kontrolü, otomatik hazırlama, açık yeniden başlatma ve taslak korumasını kapsar.
 - [x] İki dilde 940×640 ve 1200×800 arayüz; uzun sürüm notu kaydırma, katalog ve ayarlar görüntülendi. İlk beta Linux paketi; ana ekran/Modeller/Genel/About, 141 kayıt ve bağımsız MCP yardımcısı 1.0.0-beta.1 kontrolünden geçti.
 - [x] Son Windows Setup geçici Wine klasöründe kuruldu; ana ekran/Modeller/Genel/About, 141 kayıt / 18 marka ve MCP yardımcısı `1.0.0-beta.1` kontrolünden geçti. Yeniden kurulum, kaldırma ve ayrı test kullanıcı verisinin korunması doğrulandı. Gerçek yayımlanmış GitHub güncellemesi ve fiziksel Windows PowerShell/GPU davranışı bu geliştirmede denenmiş gibi sunulmaz; servis HTTP senaryoları kontrollü taklitlerledir.
-- [x] Yeniden derlenen iki dağıtımın açılmış içeriğinde 88 uygulama modülü ve toplam 520.239.320 byte tarandı; bilinen gizli anahtar desenlerinde kişisel token bulunmadı. Ayarlar, sohbetler, özel notlar ve wiki dışa aktarımı paketlere dahil değildir. Denetim sonucu özel `.local/wiki/release-audit.json` dosyasındadır.
-- [x] Son yayın manifesti gerçek dağıtım boyutları ve SHA-256 değerleriyle üretildi. Linux tek dosya: 148.308.984 byte; Windows Setup: 35.521.907 byte. `dist/SHA256SUMS` ve `dist/update-manifest.json` yayın dosyalarıyla eşleşir. İlk beta için önceki yayın tabanı olmadığı için fark dosyası üretilmez.
+- [x] Yeniden derlenen iki dağıtımın açılmış içeriğinde 88 uygulama modülü ve toplam 520.239.957 byte tarandı; bilinen gizli anahtar desenlerinde kişisel token bulunmadı. Ayarlar, sohbetler, özel notlar ve wiki dışa aktarımı paketlere dahil değildir. Denetim sonucu özel `.local/wiki/release-audit.json` dosyasındadır.
+- [x] Son yayın manifesti gerçek dağıtım boyutları ve SHA-256 değerleriyle üretildi. Linux tek dosya: 148.309.032 byte; Windows Setup: 35.521.673 byte. `dist/SHA256SUMS` ve `dist/update-manifest.json` yayın dosyalarıyla eşleşir. İlk beta için önceki yayın tabanı olmadığı için fark dosyası üretilmez.
+
+## Yayın metinlerinin sadeleştirilmesi
+
+- [x] README, iki dilde sürüm notları, kullanım belgeleri, wiki paketi ve eklenti açıklamalarındaki harici asistan/hizmet karşılaştırmaları genel ifadelerle değiştirildi. Özgün araştırma notu özel `.local/notes` klasöründe korundu.
+- [x] İş bölümünde uygulama adları yerine JSON/TOML bağlantı biçimi seçilir. Tercih dilden bağımsız kimlikle saklanır; eski profillerin TOML çıktısı korunur. İki çıktı biçimi ve profil geçişleri test edildi. Desteklenen model kimlikleri, güvenlik dışlama yolları ve gerçek servis uçları korunur.
+- [x] 193 test geçti (47,3 sn); genel metin taraması, README bağlantıları ve 51 sayfalık wiki doğrulaması başarılı. İki platform yeniden derlendi ve güncelleme manifesti yenilendi.

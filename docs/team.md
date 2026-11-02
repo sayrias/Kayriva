@@ -3,9 +3,9 @@
 Başka bir asistan Kayriva’ya araştırma veya analiz işi bırakabilir. Yerel model bu işi yürütüp sonucu geri verir. Bağlantı, kullandığın asistanın MCP ayarlarına eklenir.
 
 1. Uygulamayı aç, model ve motor kurulumunu tamamla.
-2. Ayarlar → İş bölümü içinde **Yeni profil** ile istediğin kadar profil ekle. **Asistan adı**, **Rol**, **Yerel model**, **Bağlanacak uygulama** ve **Talimatlar** alanlarını doldurup **Profili kaydet** düğmesine bas. Araştırmacı, editör, danışman gibi istediğin rolü kullanabilirsin.
+2. Ayarlar → İş bölümü içinde **Yeni profil** ile istediğin kadar profil ekle. **Asistan adı**, **Rol**, **Yerel model**, **Bağlantı biçimi** ve **Talimatlar** alanlarını doldurup **Profili kaydet** düğmesine bas. Araştırmacı, editör, danışman gibi istediğin rolü kullanabilirsin.
 3. **MCP ile görev kabul et** seçeneğini aç.
-4. **Bağlantıyı kopyala** düğmesine bas; Codex için üretilen TOML’u veya diğer istemciler için üretilen `mcpServers` JSON’u diğer asistanın stdio MCP yapılandırmasına ekle ve o istemcinin yöntemine göre etkinleştir.
+4. **Bağlantıyı kopyala** düğmesine bas; istemcinin desteklediği TOML veya `mcpServers` JSON yapılandırmasını diğer asistanın stdio MCP yapılandırmasına ekle ve o istemcinin yöntemine göre etkinleştir.
 5. Asistana devredilecek görevi belirt. Örneğin araştırmayı yerel asistana bırakıp yazma/düzenleme görevini diğer asistanda tutabilirsin.
 
 Uygulama seçimi bağlantıyı otomatik kurmaz ve dış asistanın kimliğini doğrulamaz. **i** düğmesi kurulum adımlarını açıklar. Her bağlantı `--profile` kimliği taşır; gelen işler bu profilin rolü, talimatları ve model seçimiyle kuyruklanır. Başka profilin işleri listelenemez, okunamaz veya iptal edilemez. Yerel SQLite’a erişebilen süreçler için bu bir güvenlik sınırı değildir.
@@ -32,4 +32,4 @@ Araçlar:
 
 Devredilen Web araştırması görevleri, görev türü ve MCP görev kabulüyle yetkilendirilen aramayı yürütür; ayrıca sohbet onay penceresinde beklemez. Bu görevler harici MCP araçlarını çalıştırmaz. Normal sohbetin web ve MCP işlemleri İşlem onayı menüsüne göre onay ister; proje okumaları Okumaları onayla modunda otomatik yapılabilir.
 
-Codex TOML biçimi [resmi OpenAI belgesine](https://learn.chatgpt.com/docs/extend/mcp) göre üretilir. Başka bir istemcinin beklediği JSON biçimi farklıysa onun MCP ayarlarına göre uyarlanmalıdır.
+TOML çıktısı `mcp_servers`, JSON çıktısı `mcpServers` alanını kullanır. Kullandığın istemcinin MCP belgelerinden beklenen biçimi kontrol et; gerekirse yapılandırmayı onun ayar şemasına uyarla.

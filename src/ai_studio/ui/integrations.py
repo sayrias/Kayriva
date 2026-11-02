@@ -111,7 +111,7 @@ class ExtensionBrowser(QWidget):
         self.cancel_button.hide()
         bottom.addWidget(self.cancel_button)
         layout.addLayout(bottom)
-        note = label(tr("ChatGPT'ye özel eklentiler taşınamaz. Burada aynı iş alanlarına yönelik bağımsız MCP sunucuları bulunur; her aracın kapsamı açıklamasında yazılıdır."), "status")
+        note = label(tr("Bu kütüphanede bağımsız MCP sunucuları bulunur. Her aracın kapsamı, erişim gereksinimleri ve kurulum koşulları açıklamasında yazılıdır."), "status")
         layout.addWidget(note)
         self.search.textChanged.connect(self.refresh)
         self.category.currentTextChanged.connect(self.refresh)

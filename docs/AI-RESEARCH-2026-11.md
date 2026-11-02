@@ -23,16 +23,6 @@ Kayriva'da web araması, dosya düzenleme ve görev yürütme modele araç olara
 
 “Açık ağırlıklı” ile tüm eğitim verisi/kodu açık kaynak olan ürün aynı şey değildir. Her model ve topluluk kuantizasyonunun lisansını ayrı kontrol et. Katalogda listelenmek, bu cihazda o mimarinin gerçek ağırlıklarıyla test edildiği anlamına gelmez.
 
-## Bulut seçenekleri
-
-**OpenAI:** Resmi belgeler zor kodlama ve profesyonel işler için GPT-6 Astra'yı, maliyet/hız dengesi için GPT-6.1 Sol'u; görsel muhakeme ve ekran işleri için GPT-6.1 Terra'yı öne çıkarıyor. Kod ajanı için Codex, araştırma için uygun araçlar gerekir. API modeli ile ChatGPT/Codex aboneliği aynı fiyat/kota veya aynı özellik seti değildir. Düşünme seviyesi yükseltilebilir, fakat uzun çalışma için araç sonuçları ve bağlam yönetimi de gerekir. [Güncel model rehberi](https://developers.openai.com/api/docs/guides/latest-model), [görsel giriş belgeleri](https://developers.openai.com/api/docs/guides/images-vision).
-
-**Anthropic:** Güncel resmi tabloda Claude Opus 5.5 uzun kod/ajan işleri, Sonnet 5.5 hız/zeka dengesi, Fable 5.1 zor muhakeme ve uzun ufuklu işler için konumlandırılıyor. Güncel aile metin ve görsel girişini, araç kullanımını destekliyor. Bir üreticinin konumlandırmasını bağımsız başarı garantisi olarak yorumlamamak gerekir; aynı repo görevlerinde karşılaştır. [Resmi model tablosu](https://platform.claude.com/docs/en/models/overview).
-
-**Google:** Güncel listede Gemini 4 Argon muhakeme, Gemini 3.8 Flash uzun yazılım/ajan iş akışları için yer alıyor. Argon için belgelenen bağlam **1M**; verilen rapordaki tüm Gemini'lere genellenmiş “2 milyon+” iddiası doğru bir ürün seçme ölçütü değil. Uygulamadaki Deep Research deneyimi, API'deki temel model çağrısından ayrı ürün/araç akışıdır. [Modeller](https://ai.google.dev/gemini-api/docs/models), [düşünme ayarları](https://ai.google.dev/gemini-api/docs/thinking).
-
-Maksimum kalite aranıyorsa bu üç sağlayıcının üst sınıf kod ajanlarını aynı küçük değerlendirme setinde denemek, yalnızca bir benchmark tablosuna bakmaktan daha faydalı. Burada bulut modellerini Kayriva'ya gizlice bağlamadık: uygulamanın model üretimi yerel kalır. Bulut sağlayıcıları bu raporda alternatif ürünler olarak karşılaştırılıyor.
-
 ## Düşük bellekle daha büyük iş: gerçekçi yöntemler
 
 llama.cpp'de kuantize GGUF, CPU/GPU katman bölüşümü, mmap, daha küçük mikro batch, kısa çalışma bağlamı ve Q8/Q4 KV cache birlikte kullanılabilir. Kayriva'nın **Düşük bellek** profili F16 seçili cache'i Q8'e geçirir, prompt batch/mikro batch'i küçültür ve otomatik bağlamı daha küçük başlatır. Kullanıcının açık sayısal bağlam tercihi korunur. Motorun mevcut modele ait bütçesi tekrar azaltılmaz; yeni yüklemede gerçek boş alan ölçülür. Q8 KV her mimari/motor kombinasyonunda garanti değildir; desteklenmezse dengeli/F16'ya dönmek gerekir. [llama.cpp argümanları](https://github.com/ggml-org/llama.cpp/blob/master/common/arg.cpp).
@@ -42,16 +32,6 @@ Görsel projektörü CPU'da tutmak GPU'daki metin ağırlıklarına yer bırakı
 KTransformers gibi heterojen yürütme sistemleri bazı büyük MoE modellerinde CPU/GPU iş dağılımını geliştirir; belirli donanım, RAM, kernel ve model desteği gerektirir. Bu nedenle tüketici cihazına “yoksa biz yaparız, her büyük model çalışır” şeklinde bir çözüm sunulamaz. Kayriva'nın llama.cpp çalışmasını değiştirmeden bu ayrı backend'i otomatik kurmadık. [KTransformers projesi](https://github.com/kvcache-ai/ktransformers).
 
 Disk/swap kullanımı çökme riskini azaltabilecek bir işletim sistemi mekanizmasıdır; fiziksel RAM veya VRAM yaratmaz. Çok büyük modelin ağırlıklarını sürekli diskten okumak ciddi yavaşlama yaratabilir. Uzun projede bütün dosyaları bağlama doldurmak yerine dosya araması, satır aralığı okuma ve ihtiyaca göre belge metni kullanmak da bellek tüketimini azaltır.
-
-## Verilen Gemini raporunun denetimi
-
-`gemini deepresearch.txt` tamamı (31.508 karakter) okundu; içindeki çalıştırma örnekleri talimat sayılmadı. Raporun model + araç sistemi ayrımı, kuantizasyon, bağlam/cache maliyeti ve büyük belgede seçici okuma yaklaşımı faydalı. Ancak:
-
-- Claude 3.7/o3-mini gibi eski örneklerle yeni nesil ürün adları aynı “en iyi” değerlendirmesinde karıştırılmış. Yukarıdaki liste resmi güncel sayfalardan yeniden çıkarıldı.
-- “Hatasız”, “kusursuz”, “rakipsiz” ve donanım/ayar/test verilmeden 50–90+ token/sn iddiaları doğrulanmış sonuç kabul edilemez.
-- Gemini için genel 2M bağlam, GLM-5.3 için genel MIT lisansı ve bütün sistemlerin saatlerce bağlam kaybetmeden çalışacağı iddiası düzeltilmeli.
-- o3-mini'nin dahili yöntemini MCTS olarak açıklamak veya Deep Research'ü otomatik olarak o modele bağlamak için raporda yeterli birincil kanıt yok.
-- Çok düşük bit ile küçültülmüş dosya, aynı büyüklükteki tam hassasiyetli modelin kalitesini ve hızını korumaz. Görsel model/projektör belleği tabloda ayrıca hesaba katılmalı.
 
 ## Seçim için aynı görevlerle deneme
 

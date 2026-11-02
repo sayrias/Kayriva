@@ -280,7 +280,7 @@ EN.update({
     'Seç': 'Choose', 'Kurulumdan sonra etkinleştir': 'Enable after installation',
     'Etkin sunucular sohbette araç çağrıları için çalıştırılabilir.': 'Enabled servers can be started for tool calls in chat.',
     'Kurulum kaynağı': 'Installation source', 'JSON yapıştır': 'Paste JSON', 'Bağlantıları kopyala': 'Copy connections',
-    "ChatGPT'ye özel eklentiler taşınamaz. Burada aynı iş alanlarına yönelik bağımsız MCP sunucuları bulunur; her aracın kapsamı açıklamasında yazılıdır.": 'ChatGPT-specific extensions cannot be transferred. This library contains independent MCP servers for similar workflows; each description explains its scope.',
+    "Bu kütüphanede bağımsız MCP sunucuları bulunur. Her aracın kapsamı, erişim gereksinimleri ve kurulum koşulları açıklamasında yazılıdır.": 'This library contains independent MCP servers. Each description lists the tools, access requirements and installation prerequisites.',
     'Eşleşen eklenti bulunamadı. Aramanı veya alan filtresini değiştir.': 'No matching extensions. Change your search or category filter.', 'Erişim: ': 'Access: ',
     'Bağlantı eklendi': 'Connection added', 'Bağlantıyı ekle': 'Add connection',
     'Bu eklenti Bağlantılar sayfasında. Oradan test edebilir, düzenleyebilir veya kaldırabilirsin.': 'This extension is on the Connections page. Test, edit or remove it there.',
@@ -391,7 +391,7 @@ ACTIVITY_FRAGMENTS = {
     'hazırlanıyor': ('preparing',),
 }
 
-EN["**1. Profili hazırla**\nAd, rol, talimat ve yerel modeli seç. Her profil farklı bir görev üstlenebilir.\n\n**2. Bağlantıyı ekle**\nBağlanacak uygulamayı seç, bağlantıyı kopyala ve o uygulamanın MCP ayarlarına ekle. Codex için TOML, diğer seçimler için `mcpServers` JSON üretilir. Codex'te `~/.codex/config.toml` dosyasına ekleyebilirsin.\n\n**3. Görev kabulünü aç**\nKayriva açıkken bu profilin MCP kabulünü etkinleştir. Diğer asistan `ask_local_model` veya `delegate_research` ile görev gönderip sonucu alabilir. Profiller aynı yerel motoru sırayla kullanır.\n\nUygulama seçimi otomatik bağlantı veya kimlik doğrulama yapmaz. Bağlantının profil kimliği görevleri doğru role yönlendirir. Çevrimdışı mod kabulü kapatır. Web araştırması seçili arama sağlayıcısına sorgu gönderir.\n\n[Codex bağlantı belgesi](https://learn.chatgpt.com/docs/extend/mcp)"] = '**1. Prepare the profile**\nChoose a name, role, instructions and local model. Each profile can take a different task.\n\n**2. Add the connection**\nChoose the connecting app, copy the connection and add it to that app’s MCP settings. Codex receives TOML; other choices use mcpServers JSON. For Codex, add it to ~/.codex/config.toml.\n\n**3. Enable task reception**\nWhile Kayriva is open, enable this profile’s MCP task reception. Another assistant can send tasks using ask_local_model or delegate_research and receive the result. Profiles share the local engine in sequence.\n\nChoosing an app does not connect or authenticate it automatically. The profile identifier routes tasks to the right role. Offline mode disables task reception. Web research sends queries to the selected search provider.\n\n[Codex MCP documentation](https://learn.chatgpt.com/docs/extend/mcp)'
+EN["**1. Profili hazırla**\nAd, rol, talimat ve yerel modeli seç. Her profil farklı bir görev üstlenebilir.\n\n**2. Bağlantıyı ekle**\nİstemcinin desteklediği JSON veya TOML biçimini seç, bağlantıyı kopyala ve istemcinin MCP ayarlarına ekle. JSON çıktısı `mcpServers`, TOML çıktısı `mcp_servers` alanını kullanır.\n\n**3. Görev kabulünü aç**\nKayriva açıkken bu profilin MCP kabulünü etkinleştir. Diğer asistan `ask_local_model` veya `delegate_research` ile görev gönderip sonucu alabilir. Profiller aynı yerel motoru sırayla kullanır.\n\nUygulama seçimi otomatik bağlantı veya kimlik doğrulama yapmaz. Bağlantının profil kimliği görevleri doğru role yönlendirir. Çevrimdışı mod kabulü kapatır. Web araştırması seçili arama sağlayıcısına sorgu gönderir."] = '**1. Prepare the profile**\nChoose a name, role, instructions and local model. Each profile can take a different task.\n\n**2. Add the connection**\nChoose the JSON or TOML format supported by your client, copy the connection and add it to the client’s MCP settings. JSON uses the mcpServers field; TOML uses mcp_servers.\n\n**3. Enable task reception**\nWhile Kayriva is open, enable this profile’s MCP task reception. Another assistant can send tasks using ask_local_model or delegate_research and receive the result. Profiles share the local engine in sequence.\n\nChoosing an app does not connect or authenticate it automatically. The profile identifier routes tasks to the right role. Offline mode disables task reception. Web research sends queries to the selected search provider.'
 
 EN.update({
     'Dil': 'Language', 'Dil ve görünüm': 'Language and interface',
@@ -420,6 +420,11 @@ EN.update({
     'Güncelleme deposu ayarlanmamış.': 'An update repository has not been configured.',
     'Güncelleme iptal edildi; kurulu uygulama değiştirilmedi.': 'Update cancelled; the installed application was not changed.',
     'Doğrulanan güncelleme uygulama kapandıktan sonra kurulacak ve Kayriva yeniden başlayacak.': 'The verified update will install and restart Kayriva after the application closes.',
+})
+
+EN.update({
+    'Bağlantı biçimi': 'Connection format',
+    'İstemcinin MCP ayarlarında desteklediği biçimi seç.': 'Choose the format supported by your client’s MCP settings.',
 })
 
 # Reverse entries cover English messages emitted by the updater. UI literals
