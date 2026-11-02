@@ -39,7 +39,7 @@ body+=f'<path d="M750 360V139L896 32l146 107v221" stroke="#33313f" stroke-width=
 body+=mark(777,84,10,accent,0.85)
 body+=text('LOCAL DESKTOP',783,314,15,muted)+'</g>'
 svg('kayriva-banner.svg',1120,360,'Kayriva — your model, local. Your own workspace.','Kayriva wordmark and lavender geometric emblem on graphite. Chat, project files and tools in one desktop workspace.',body)
-for name,title,sub,icon in [('start','Get started','Setup and your first chat','play'),('models','Choose a model','Catalog and hardware guide','layers'),('develop','Build with Kayriva','Architecture, tools and builds','code')]:
+for name,title,sub,icon in [('start','Get started','Setup and your first chat','play'),('models','Choose a model','Find a fit for your hardware','layers'),('projects','Work with projects','Files, research and tools','code')]:
     b=f'<rect x="1" y="1" width="350" height="86" rx="12" fill="{surface}" stroke="{edge}"/>'
     paths={'play':'M21 26l12 8-12 8Z','layers':'m26 23 12 7-12 7-12-7Zm-12 14 12 7 12-7m-24 7 12 7 12-7','code':'m20 26-8 9 8 9m14-18 8 9-8 9m-5-22-5 26'}
     b+=f'<g transform="translate(4 7)" fill="none" stroke="{accent}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="{paths[icon]}"/></g>'

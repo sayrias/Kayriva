@@ -13,7 +13,7 @@ python3 docs/assets/generate.py
 Bu komut PySide6 gerektirir; hiçbir ağ isteği yapmaz. Metin ve vektör geometrisi `generate.py` içindedir. Çıktılar:
 
 - `kayriva-banner.svg`: proje kimliği, 1120 × 360.
-- `nav-start.svg`, `nav-models.svg`, `nav-develop.svg`: README içi gezinme, 352 × 88.
+- `nav-start.svg`, `nav-models.svg`, `nav-projects.svg`: README içi gezinme, 352 × 88.
 - `local-workflow.svg`: yerel çalışma akışı, 1120 × 180.
 
 `kayriva-desktop.png`, örnek projeler ve yerel test verileriyle alınmış gerçek 1200 × 800 uygulama görüntüsüdür; seçilmiş/yüklü model göstermez. PNG değiştirilmeden eklenmiştir; köken bilgisi yanındaki `.json` dosyasında bulunur. `generate.py` bu ekran görüntüsünü üretmez veya değiştirmez.
