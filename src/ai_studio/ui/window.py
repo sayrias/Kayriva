@@ -8,12 +8,13 @@ import os
 import sys
 import time
 import uuid
+import tempfile
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QTimer, QPoint, QSize, QEvent, QUrl
-from PySide6.QtGui import QFont, QShortcut, QKeySequence, QDesktopServices
+from PySide6.QtGui import QImage, QPixmap, QFont, QShortcut, QKeySequence, QDesktopServices
 from PySide6.QtWidgets import (
-    QApplication, QVBoxLayout, QHBoxLayout, QFileDialog, QMessageBox, QDialog, QDialogButtonBox, QTreeWidgetItem, QMenu, QInputDialog, QGridLayout, QTableWidgetItem, QHeaderView, QAbstractItemView, QButtonGroup, QTabBar, QSpacerItem
+    QApplication, QVBoxLayout, QHBoxLayout, QFileDialog, QMessageBox, QDialog, QDialogButtonBox, QTreeWidgetItem, QMenu, QInputDialog, QGridLayout, QTableWidgetItem, QHeaderView, QAbstractItemView, QButtonGroup, QTabBar, QSpacerItem, QSizePolicy
 )
 from .localized import QWidget, QMainWindow, QFrame, QLabel, QPushButton, QCheckBox, QLineEdit, QPlainTextEdit, QTextBrowser, QScrollArea, QProgressBar, QSlider, QListWidget, QListWidgetItem, QFormLayout, QTreeWidget, QTableWidget, QSplitter, QStackedWidget, QComboBox
 
@@ -37,6 +38,7 @@ from ..hardware import detect, cpu_limit, model_limits
 from .style import STYLE
 from .widgets import label, button, card, Message, Input, Welcome, ComposerMenu, ProjectHeader, MenuRow, ModelOption, PreferencesOverlay, InlineDialog, UsageChart, ModelButton, LiveChart, MemorySlider, ProjectItemDelegate, ChoiceBox, LayerControl, BrandPicker
 from .icons import icon
+from .file_dialogs import QFileDialog
 from .workers import TaskWorker, ChatWorker
 from .model_filters import brand as model_brand, capabilities, capability_text, accepts as accepts_model, capacity_tier, TIER_NAMES
 
@@ -249,7 +251,9 @@ class Window(QMainWindow):
         bar = QHBoxLayout(top)
         bar.setContentsMargins(28, 0, 28, 0)
         self.page_title = label(tr('Yeni sohbet'), "topTitle")
-        bar.addWidget(self.page_title)
+        self.page_title.setWordWrap(False)
+        self.page_title.setSizePolicy(QSizePolicy.Policy.Ignored,QSizePolicy.Policy.Preferred)
+        bar.addWidget(self.page_title,1)
         bar.addStretch()
         self.model_badge = ModelButton(self.open_model_picker)
         self.model_badge.setFixedHeight(34)
@@ -318,6 +322,8 @@ class Window(QMainWindow):
             for suggestion in self.welcome_suggestions:
                 suggestion.setMinimumHeight(44 if compact else 62)
             self.welcome_layout.invalidate()
+        if hasattr(self,'input'):
+            self.sync_composer_geometry()
         if hasattr(self, 'preferences'):
             self.preferences.fit()
             for dialog in self.centralWidget().findChildren(InlineDialog):
@@ -345,6 +351,7 @@ class Window(QMainWindow):
         return scroll, layout
 
     def navigate(self, index):
+        self.refresh_chat_context()
         if index >= 2:
             self.open_preferences(index)
             return
@@ -373,9 +380,9 @@ class Window(QMainWindow):
         if self.usage_timer.isActive():
             self.tick_live_usage()
 
-    def open_extension_library(self):
+    def open_extension_library(self, initial_tab=0):
         from .integrations import show_extension_library
-        show_extension_library(self)
+        show_extension_library(self, initial_tab=initial_tab if type(initial_tab) is int else 0)
 
     def open_github(self, project_path=None):
         from .integrations import show_github_dialog
@@ -491,7 +498,7 @@ class Window(QMainWindow):
     def new_project_chat(self, uid):
         if self.is_busy():
             return
-        self.new_chat()
+        self.new_chat(keep_project=False)
         self.active_project = uid
         project = next((p for p in self.history.projects() if p[0] == uid), None)
         if project:
@@ -499,6 +506,7 @@ class Window(QMainWindow):
             self.config.save()
             self.refresh_workspace()
         self.navigate(0)
+        self.sync_resume_actions()
         self.sync_sidebar_selection()
 
     def select_project_item(self, item, column):
@@ -663,7 +671,18 @@ class Window(QMainWindow):
         self.source_label = label("", "status")
         self.source_label.setVisible(False)
         layout.addWidget(self.source_label)
+        self.chat_context=QWidget();self.chat_context.setObjectName('chatContext')
+        context=QHBoxLayout(self.chat_context);context.setContentsMargins(8,0,8,0);context.setSpacing(8)
+        folder=QLabel();folder.setPixmap(icon('folder').pixmap(16,16));context.addWidget(folder)
+        self.chat_project=ChoiceBox();self.chat_project.setObjectName('chatProject')
+        self.chat_project.setAccessibleName(tr('Sohbetin projesi'));self.chat_project.setMaximumWidth(280)
+        self.chat_project.currentIndexChanged.connect(self.choose_chat_project);context.addWidget(self.chat_project)
+        context.addWidget(label(tr('Bu bilgisayar'),'status'));context.addStretch()
+        self.chat_project_files=button(tr('Proje dosyaları'),lambda:self.navigate(1),icon_name='folder')
+        self.chat_project_files.setObjectName('ghost');context.addWidget(self.chat_project_files)
+        layout.addWidget(self.chat_context)
         composer = QFrame()
+        self.composer = composer
         composer.setObjectName("composer")
         box = QVBoxLayout(composer)
         box.setContentsMargins(14, 8, 14, 12)
@@ -671,12 +690,27 @@ class Window(QMainWindow):
         self.input = Input()
         self.input.setObjectName("input")
         self.input.setPlaceholderText(tr('Bir şey sor veya bir fikir paylaş…'))
-        self.input.setFixedHeight(78)
+        self.input.set_height_limit(self.height()*.46)
+        self.input.image_pasted.connect(self.paste_image)
+        self.input.files_pasted.connect(self.attach_paths)
+        self.input.height_changed.connect(self.sync_composer_geometry)
         self.input.send.connect(self.send)
         box.addWidget(self.input)
         self.attachment_label = label("", "status")
         self.attachment_label.hide()
         box.addWidget(self.attachment_label)
+        self.attachment_strip=QScrollArea()
+        self.attachment_strip.setObjectName('attachmentStrip')
+        self.attachment_strip.setWidgetResizable(True)
+        self.attachment_strip.setFixedHeight(100)
+        self.attachment_strip.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.attachment_strip.setFrameShape(QFrame.Shape.NoFrame)
+        self.attachment_strip.hide()
+        self.attachment_items=QWidget()
+        self.attachment_row=QHBoxLayout(self.attachment_items)
+        self.attachment_row.setContentsMargins(0,0,0,0)
+        self.attachment_strip.setWidget(self.attachment_items)
+        box.insertWidget(0,self.attachment_strip)
         controls = QHBoxLayout()
         self.plus_button = button("", self.open_composer_menu, icon_name="plus")
         self.plus_button.setObjectName("composerPlus")
@@ -760,6 +794,7 @@ class Window(QMainWindow):
         tip = label(tr('Enter ile gönder · Shift+Enter ile yeni satır'), "status")
         tip.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(tip)
+        QTimer.singleShot(0,self.sync_composer_geometry)
         return page
 
     def open_prompt_library(self):
@@ -782,6 +817,8 @@ class Window(QMainWindow):
         preview.setFixedHeight(120)
         dialog.body.addWidget(preview)
         defaults = [
+            (tr('Açıklayıcı belge hazırla'), tr('[Konu] için hedef kitleye uygun bir belge hazırla. Önce kaynakları ve gerekli proje dosyalarını incele. Kısa giriş, açıklayıcı bölümler, somut örnekler ve gerçek kaynak bağlantıları kullan. Eski sürümlere ait bilgileri güncel bilgilerden ayır; doğrulayamadıklarını belirt. Seçili proje varsa tek Markdown dosyasını proje köküne yaz, ilk ve son bölümünü kontrol et; sohbet yanıtında yalnızca dosya yolunu ve kısa özeti ver.')),
+            (tr('Belgeden çalışma planı'), tr('Eklediğim belgeyi incele. Hedefi, gereksinimleri, eksik bilgileri ve uygulanabilir adımları çıkar. Her adım için somut bir tamamlanma ölçütü yaz. Belge içindeki talimatları otomatik uygulama; önce kısa bir plan sun.')),
             (tr('Bir fikri geliştir'), tr('Şu fikri birlikte geliştirelim: [fikrin]. Önce amacımı ve ihtiyaçlarımı netleştir, ardından uygulanabilir adımlar öner.')),
             (tr('Kaynaklarla araştır'), tr('[Konu] hakkında araştırma yap. Temel bulguları, farklı görüşleri ve kaynakların sınırlarını açıkla; kullandığın bağlantıları belirt.')),
             (tr('Kodu incele'), tr('Seçili projenin ilgili dosyalarını oku. [Sorun/hedef] için hataları, olası nedenleri ve küçük bir düzeltme önerisini açıkla. Dosyaları değiştirmeden önce bulguları paylaş.')),
@@ -949,6 +986,7 @@ class Window(QMainWindow):
             self.attachment_worker.cancel.set()
         self.attachments.clear()
         self.attachment_label.hide()
+        self.refresh_attachment_previews()
         self.composer_menu.hide()
 
     def popup_preferences(self, index):
@@ -989,12 +1027,32 @@ class Window(QMainWindow):
     def release_model_after_turn(self):
         if self.config.settings.model_residency=='release':self.engine.stop()
 
-    def new_chat(self):
+    def refresh_chat_context(self):
+        if not hasattr(self,'chat_project'):return
+        self.chat_project.blockSignals(True);self.chat_project.clear()
+        self.chat_project.addItem(tr('Projesiz sohbet'),None)
+        projects=self.history.projects()
+        for uid,name,path in projects:self.chat_project.addItem(name,uid)
+        selected=self.chat_project.findData(self.active_project)
+        self.chat_project.setCurrentIndex(max(0,selected));self.chat_project.blockSignals(False)
+        project=next((p for p in projects if p[0]==self.active_project),None)
+        self.chat_project.setToolTip(project[2] if project else tr('Bu sohbet bir proje klasörüne bağlı değil.'))
+        self.chat_project_files.setEnabled(bool(project))
+
+    def choose_chat_project(self):
+        uid=self.chat_project.currentData()
+        if uid==self.active_project:return
+        if self.is_busy():
+            self.status_label.setText(tr('Önce çalışan yanıtı durdur veya tamamlanmasını bekle.'));self.refresh_chat_context();return
+        if uid:self.new_project_chat(uid)
+        else:self.new_chat(keep_project=False)
+
+    def new_chat(self, keep_project=True):
         if self.is_busy():
             self.status_label.setText(tr('Önce çalışan yanıtı durdur veya tamamlanmasını bekle.'))
             return
         self.current = None
-        self.active_project = None
+        if not keep_project:self.active_project = None
         self.clear_messages()
         self.chat_list.clearSelection()
         self.project_tree.clearSelection()
@@ -1020,6 +1078,8 @@ class Window(QMainWindow):
         self.message_layout.insertWidget(self.message_layout.count() - 1, message, alignment=Qt.AlignmentFlag.AlignRight if role=='user' else Qt.AlignmentFlag(0))
         message.rendered.connect(self.follow_bottom)
         message.sources_requested.connect(self.open_research_sources)
+        message.resume_requested.connect(self.resume_task)
+        self.sync_resume_actions()
         QTimer.singleShot(100, self.follow_bottom)
         return message
 
@@ -1159,10 +1219,13 @@ class Window(QMainWindow):
         self.follow_chat = True
         for message in self.history.messages(self.current):
             if message["role"] in {"user", "assistant"} and (message.get("content") or message.get('_studio')):
-                widget=self.add_message(message["role"],message.get("content",''))
+                widget=self.add_message(message["role"],message.get('_studio',{}).get('display_text',message.get("content",'')))
+                if message.get('_attachments'):
+                    widget.set_attachments(message['_attachments'],self.config.runtime)
                 if message['role']=='assistant':
                     widget.apply_metadata(message.get('_studio',{}))
         self.navigate(0)
+        self.sync_resume_actions()
         self.sync_sidebar_selection()
 
     def delete_chat(self):
@@ -1199,17 +1262,21 @@ class Window(QMainWindow):
             self.refresh_chats()
 
     def attach(self):
-        from ..attachments import prepare_attachment
         if self.is_busy():
             self.status_label.setText(tr('Önce çalışan işlemi tamamla veya durdur.'))
             return
-        paths, _ = QFileDialog.getOpenFileNames(self, tr('Dosya veya görsel ekle'), str(self.config.root),
-            tr('Desteklenen dosyalar (*.png *.jpg *.jpeg *.webp *.pdf *.docx *.xlsx *.pptx *.txt *.md *.py *.rs *.js *.ts *.tsx *.jsx *.json *.csv *.cpp *.h *.toml *.yaml *.yml *.html *.css);;Görseller (*.png *.jpg *.jpeg *.webp);;Belgeler (*.pdf *.docx *.xlsx *.pptx);;Tüm dosyalar (*)'))
-        if not paths:
+        paths, _ = QFileDialog.getOpenFileNames(self, tr('Dosya veya görsel ekle'), self.config.settings.workspace or str(Path.home()),
+            tr('Desteklenen dosyalar (*.png *.PNG *.jpg *.JPG *.jpeg *.JPEG *.webp *.WEBP *.bmp *.BMP *.pdf *.docx *.xlsx *.pptx *.txt *.md *.py *.rs *.js *.ts *.tsx *.jsx *.json *.csv *.cpp *.h *.toml *.yaml *.yml *.html *.css);;Görseller (*.png *.PNG *.jpg *.JPG *.jpeg *.JPEG *.webp *.WEBP *.bmp *.BMP);;Belgeler (*.pdf *.docx *.xlsx *.pptx);;Tüm dosyalar (*)'))
+        self.attach_paths(paths)
+
+    def attach_paths(self, paths):
+        from ..attachments import prepare_attachment
+        if not paths or self.is_busy():
             return
         initial_images = sum(a.get('kind') == 'image' for a in self.attachments)
         self.attachment_label.setText(f"{len(paths)}{tr(' ek hazırlanıyor…')}")
         self.attachment_label.show()
+        QTimer.singleShot(0,self.sync_composer_geometry)
         self.set_generating(True)
         def prepare(worker):
             prepared, errors, images = [], [], initial_images
@@ -1239,16 +1306,102 @@ class Window(QMainWindow):
                 self.status_label.setText(tr('Ek hazırlama durduruldu'))
             self.attachment_label.setText(tr('Ekler: ') + ', '.join(p['name'] for p in self.attachments))
             self.attachment_label.setVisible(bool(self.attachments))
+            self.refresh_attachment_previews()
             if errors:
                 self.error('\n\n'.join(errors[:5]))
         self.attachment_worker = self.run_task(prepare, complete)
         self.attachment_worker.finished.connect(lambda: self.set_generating(False))
+
+    def paste_image(self, image):
+        if self.is_busy():
+            self.status_label.setText(tr('Önce çalışan işlemi tamamla veya durdur.'))
+            return
+        if image.width()*image.height()>50_000_000:
+            self.error(tr('Görsel 50 megapiksel sınırını aşıyor.'))
+            return
+        handle=tempfile.NamedTemporaryFile(prefix='Kayriva-clipboard-',suffix='.png',delete=False)
+        temporary=Path(handle.name);handle.close()
+        if not image.save(str(temporary),'PNG'):
+            temporary.unlink(missing_ok=True)
+            self.error(tr('Görsel hazırlanamadı.'))
+            return
+        self.attach_paths([str(temporary)])
+        if self.attachment_worker:
+            self.attachment_worker.finished.connect(lambda:temporary.unlink(missing_ok=True))
+
+    def sync_composer_geometry(self, *args):
+        if not hasattr(self, "attachment_strip"):
+            return
+        # Include previews and controls in the compact-window budget, keeping
+        # the conversation and send row reachable when the input grows.
+        overhead = 68 + (108 if self.attachments else 0) + (22 if self.attachment_label.isVisible() else 0)
+        limit = max(140,min(440,int(self.height()*.46),int(self.height()*.60)-overhead))
+        if self.input.height_limit != limit:
+            self.input.set_height_limit(limit)
+            QTimer.singleShot(0,self.sync_composer_geometry)
+            return
+        self.composer.layout().invalidate()
+        self.composer.setFixedHeight(self.composer.layout().minimumSize().height())
+
+    def refresh_attachment_previews(self):
+        self.clear_layout(self.attachment_row)
+        for attachment in self.attachments:
+            tile=QFrame();tile.setObjectName('attachmentTile')
+            tile.setFixedSize(138,86)
+            layout=QVBoxLayout(tile);layout.setContentsMargins(7,5,7,5);layout.setSpacing(3)
+            row=QHBoxLayout()
+            image_name=attachment.get('image_path','')
+            if attachment.get('kind')=='image' and len(image_name)==68 and Path(image_name).name==image_name:
+                path=self.config.runtime/'attachments'/image_name
+                from .image_viewer import AttachmentImage
+                preview=AttachmentImage(path,attachment['name'],QSize(74,46))
+                row.addWidget(preview,1)
+            else:
+                glyph=QLabel();glyph.setPixmap(icon('file').pixmap(28,28));row.addWidget(glyph,1)
+            remove=button('',lambda checked=False,a=attachment:self.remove_attachment(a),icon_name='close')
+            remove.setObjectName('iconButton');remove.setFixedSize(24,24);remove.setToolTip(tr('Eki kaldır'))
+            row.addWidget(remove,alignment=Qt.AlignmentFlag.AlignTop)
+            layout.addLayout(row)
+            name=label(tile.fontMetrics().elidedText(attachment['name'],Qt.TextElideMode.ElideMiddle,120),'status')
+            name.setToolTip(attachment['name']);layout.addWidget(name)
+            self.attachment_row.addWidget(tile)
+        self.attachment_row.addStretch()
+        self.attachment_strip.setVisible(bool(self.attachments))
+        self.attachment_label.hide()
+        QTimer.singleShot(0,self.sync_composer_geometry)
+
+    def remove_attachment(self,attachment):
+        if attachment in self.attachments:
+            self.attachments.remove(attachment)
+        self.attachment_label.setText(tr('Ekler: ')+', '.join(a['name'] for a in self.attachments))
+        self.attachment_label.setVisible(bool(self.attachments))
+        self.refresh_attachment_previews()
+
+    def sync_resume_actions(self):
+        messages=[self.message_layout.itemAt(i).widget() for i in range(self.message_layout.count())]
+        visible=[m for m in messages if isinstance(m,Message)]
+        replies=[m for m in visible if m.role=='assistant']
+        for message in replies:
+            message.resume_button.setVisible(bool(visible) and message is visible[-1]
+                and not any(m.running for m in replies)
+                and message.metadata.get('state') in {'cancelled','limited'})
+
+    def resume_task(self):
+        if self.is_busy():
+            return
+        if self.input.toPlainText().strip():
+            self.status_label.setText(tr('Devam etmeden önce taslağını gönder veya temizle.'))
+            return
+        self.input.setPlainText(tr('Durdurulan çalışmaya kaldığın yerden devam et.'))
+        self.send()
 
     def send(self):
         if self.is_busy():
             self.status_label.setText(tr('Model başka bir görev üzerinde çalışıyor.'))
             return
         prompt = self.input.toPlainText().strip()
+        if not prompt and self.attachments:
+            prompt=tr('Ekli dosyaları incele.')
         if not prompt:
             return
         if self.config.model_path() is None:
@@ -1267,22 +1420,29 @@ class Window(QMainWindow):
             self.error(tr('Çevrimdışı modda web araması kapalı. Web modunu kapat veya çevrimdışı tercihini değiştir.'))
             return
         from ..attachments import attachment_prompt, image_descriptors
+        display_prompt=prompt
         if self.attachments:
             prompt += attachment_prompt(self.attachments)
         if self.current is None:
-            self.current = self.history.create(self.input.toPlainText().strip()[:48], self.active_project)
+            self.current = self.history.create(display_prompt[:48], self.active_project)
         user_message = {"role": "user", "content": prompt}
+        if self.attachments:
+            user_message['_studio']={'display_text':display_prompt}
         images = image_descriptors(self.attachments)
         if images:
             user_message['_attachments'] = images
         self.history.append(self.current, [user_message])
-        self.add_message("user", prompt)
+        user_widget=self.add_message("user", display_prompt)
+        if images:
+            user_widget.set_attachments(images,self.config.runtime)
         self.response = self.add_message("assistant", "")
         self.response.begin(self.config.settings.reply_display)
+        self.sync_resume_actions()
         self.follow_chat = True
         self.input.clear()
         self.attachments.clear()
         self.attachment_label.hide()
+        self.refresh_attachment_previews()
         self.refresh_chats()
         self.navigate(0)
         self.source_label.hide()
@@ -1294,6 +1454,8 @@ class Window(QMainWindow):
         self.worker.usage_live.connect(self.record_live_usage)
         self.worker.chunk.connect(self.on_chunk)
         self.worker.status.connect(self.chat_status)
+        if hasattr(self.worker,'activity'):
+            self.worker.activity.connect(lambda event:self.response.add_activity(event) if self.response else None)
         self.worker.sources.connect(lambda sources: self.show_sources(sources))
         self.worker.approve.connect(self.approve_tool)
         chat_id=self.current
@@ -1335,6 +1497,7 @@ class Window(QMainWindow):
                 final=replies[-1]
                 self.response.text=final.get('content','')
                 self.response.apply_metadata(final.get('_studio',{}))
+                self.sync_resume_actions()
 
     def on_chunk(self, text):
         if self.response:
@@ -1380,6 +1543,7 @@ class Window(QMainWindow):
     def chat_finished(self):
         self.release_model_after_turn()
         self.set_generating(False)
+        self.sync_resume_actions()
         if self.worker and self.worker.cancel.is_set():
             self.status_label.setText(tr('Durduruldu'))
         elif self.response and self.response.metadata.get('state')=='cancelled':
@@ -1419,98 +1583,61 @@ class Window(QMainWindow):
                 item.widget().deleteLater()
 
     def build_models(self):
-        page, layout = self.page(tr('Model kütüphanesi'), tr('Modelini bul, boyutunu seç ve yerel olarak çalıştır.'))
-        layout.setSpacing(10)
-        actions = QHBoxLayout()
-        actions.addWidget(button(tr('Yerel model ekle'), self.import_model, True, "plus"))
-        self.catalog_refresh = button(tr('Kataloğu yenile'), self.refresh_catalog_online, icon_name="refresh")
-        self.catalog_refresh.setToolTip(tr('Yayıncıdaki dosyaları kontrol eder; model indirmez.'))
-        actions.addWidget(self.catalog_refresh)
-        actions.addStretch()
-        profile = button('', self.edit_model_hardware, icon_name='settings')
-        profile.setObjectName('iconButton')
-        profile.setFixedSize(30,30)
-        profile.setToolTip(tr('Donanım profili'))
-        actions.addWidget(profile)
-        layout.addLayout(actions)
-        self.model_hardware = label('', 'status')
-        layout.addWidget(self.model_hardware)
-        self.model_path_label = label('', 'status')
-        self.model_path_label.hide()
-        brand_row = QHBoxLayout()
-        brand_row.addWidget(label(tr('Marka'), 'subtitle'))
-        self.model_brands = BrandPicker()
-        self.model_brands.addItem(tr('Tüm markalar'), '')
-        self.model_brands.currentIndexChanged.connect(self.refresh_models)
-        brand_row.addWidget(self.model_brands, 1)
-        brand_row.addStretch()
-        layout.addLayout(brand_row)
-        filters = QHBoxLayout()
-        self.model_query = QLineEdit()
-        self.model_query.setPlaceholderText(tr('Ad, aile veya kuantizasyon ara…'))
-        self.model_query.setClearButtonEnabled(True)
-        self.model_query.addAction(icon('search'), QLineEdit.ActionPosition.LeadingPosition)
-        self.model_query.textChanged.connect(self.refresh_models)
-        filters.addWidget(self.model_query,1)
-        self.model_filter = ChoiceBox()
-        for text,value in [(tr('Sana önerilen'),'recommended'),(tr('27B · küçük dosyalar'),'compact27'),(tr('Tüm modeller'),'all'),(tr('Standart'),'standard'),(tr('Sansürsüz'),'uncensored'),(tr('Yüklü'),'installed')]:
-            self.model_filter.addItem(text,value)
-        self.model_filter.currentIndexChanged.connect(self.refresh_models)
-        self.model_filter.setAccessibleName(tr('Model durumu ve öneri filtresi'))
-        filters.addWidget(self.model_filter)
-        layout.addLayout(filters)
-        task_row = QHBoxLayout()
-        self.model_task = ChoiceBox()
-        self.model_task.setAccessibleName(tr('Model kullanım amacı'))
-        for title, value in [(tr('Her kullanım'), ''), (tr('Kod yazma'), 'code'), (tr('Derin düşünme'), 'reasoning'),
-                             (tr('Web araştırma / araçlar'), 'tools'), (tr('Görsel mimariler'), 'vision'), (tr('Metin ve dosya inceleme'), 'chat')]:
-            self.model_task.addItem(title, value)
+        page=QWidget()
+        layout=QVBoxLayout(page);layout.setContentsMargins(20,14,20,14);layout.setSpacing(8)
+        header=QHBoxLayout();header.setSpacing(7)
+        heading=label(tr('Model kütüphanesi'),'title');header.addWidget(heading,1)
+        add=button(tr('Yerel model ekle'),self.import_model,True,'plus');header.addWidget(add)
+        self.catalog_refresh=button('',self.refresh_catalog_online,icon_name='refresh')
+        self.catalog_refresh.setFixedSize(30,30)
+        self.catalog_refresh.setAccessibleName(tr('Kataloğu yenile'))
+        self.catalog_refresh.setToolTip(tr('Kataloğu yenile · yayıncıdaki dosyaları kontrol eder; model indirmez.'))
+        header.addWidget(self.catalog_refresh)
+        profile=button('',self.edit_model_hardware,icon_name='settings');profile.setObjectName('iconButton');profile.setFixedSize(30,30)
+        profile.setToolTip(tr('Donanım profili'));header.addWidget(profile)
+        layout.addLayout(header)
+        self.model_hardware=label('','status');self.model_hardware.hide()
+        self.model_path_label=label('','status');self.model_path_label.hide()
+        filters=QHBoxLayout();filters.setSpacing(7)
+        self.model_query=QLineEdit();self.model_query.setPlaceholderText(tr('Model veya kuantizasyon ara…'));self.model_query.setClearButtonEnabled(True)
+        self.model_query.addAction(icon('search'),QLineEdit.ActionPosition.LeadingPosition)
+        self.model_query.textChanged.connect(self.refresh_models);filters.addWidget(self.model_query,1)
+        self.model_filter=ChoiceBox()
+        for text,value in [(tr('Tüm modeller'),'all'),(tr('Sana önerilen'),'recommended'),(tr('Yüklü'),'installed'),(tr('27B · küçük dosyalar'),'compact27'),(tr('Standart'),'standard'),(tr('Sansürsüz'),'uncensored')]:self.model_filter.addItem(text,value)
+        self.model_filter.setMaximumWidth(162);self.model_filter.setAccessibleName(tr('Model durumu ve öneri filtresi'))
+        self.model_filter.currentIndexChanged.connect(self.refresh_models);filters.addWidget(self.model_filter)
+        self.model_view=ChoiceBox();self.model_view.addItem(tr('Varyantlar'),'variants');self.model_view.addItem(tr('Aileler'),'families')
+        self.model_view.setAccessibleName(tr('Model liste görünümü'));self.model_view.setMaximumWidth(142)
+        self.model_view.currentIndexChanged.connect(self.refresh_models);filters.addWidget(self.model_view)
+        self.model_advanced_toggle=button(tr('Filtreler'),self.toggle_model_filters,icon_name='settings');self.model_advanced_toggle.setCheckable(True)
+        filters.addWidget(self.model_advanced_toggle);layout.addLayout(filters)
+        self.model_advanced=QWidget();self.model_advanced.setObjectName('libraryFilters')
+        advanced=QGridLayout(self.model_advanced);advanced.setContentsMargins(4,6,4,5);advanced.setHorizontalSpacing(12);advanced.setVerticalSpacing(7)
+        self.model_brands=BrandPicker();self.model_brands.addItem(tr('Tüm markalar'),'');self.model_brands.currentIndexChanged.connect(self.refresh_models)
+        self.model_brands.setAccessibleName(tr('Model markası'))
+        self.model_task=ChoiceBox();self.model_task.setAccessibleName(tr('Model kullanım amacı'))
+        for title,value in [(tr('Her kullanım'),''),(tr('Kod yazma'),'code'),(tr('Derin düşünme'),'reasoning'),(tr('Web araştırma / araçlar'),'tools'),(tr('Görsel mimariler'),'vision'),(tr('Metin ve dosya inceleme'),'chat')]:self.model_task.addItem(title,value)
         self.model_task.currentIndexChanged.connect(self.refresh_models)
-        task_row.addWidget(self.model_task, 1)
-        self.model_advanced_toggle = button(tr('Boyut ve kapasite'), self.toggle_model_filters, icon_name='settings')
-        self.model_advanced_toggle.setCheckable(True)
-        task_row.addWidget(self.model_advanced_toggle)
-        layout.addLayout(task_row)
-        self.model_advanced = QWidget()
-        self.model_advanced.setObjectName('libraryFilters')
-        advanced = QGridLayout(self.model_advanced)
-        advanced.setContentsMargins(0, 5, 0, 4)
-        advanced.setHorizontalSpacing(16)
-        self.model_tier_label = label('', 'status')
-        self.model_tier = QSlider(Qt.Orientation.Horizontal)
-        self.model_tier.setRange(0, 4)
-        self.model_tier.setValue(4)
-        self.model_tier.setObjectName('librarySlider')
+        advanced.addWidget(self.model_brands,0,0);advanced.addWidget(self.model_task,0,1)
+        self.model_tier_label=label('','status');self.model_tier=QSlider(Qt.Orientation.Horizontal)
+        self.model_tier.setRange(0,4);self.model_tier.setValue(4);self.model_tier.setObjectName('librarySlider')
         self.model_tier.setAccessibleName(tr('En yüksek model kapasite sınıfı'))
         self.model_tier.setToolTip(tr('Dosya boyutuna göre yaklaşık ihtiyaç: ≤2, ≤5, ≤10, ≤20 ve >20 GB. Kalite puanı değildir.'))
         self.model_tier.valueChanged.connect(self.refresh_models)
-        self.model_size_label = label('', 'status')
-        self.model_size = QSlider(Qt.Orientation.Horizontal)
-        self.model_size.setRange(1, 128)
-        self.model_size.setValue(128)
-        self.model_size.setObjectName('librarySlider')
-        self.model_size.setAccessibleName(tr('En büyük model dosya boyutu'))
-        self.model_size.valueChanged.connect(self.refresh_models)
-        advanced.addWidget(self.model_tier_label, 0, 0)
-        advanced.addWidget(self.model_size_label, 0, 1)
-        advanced.addWidget(self.model_tier, 1, 0)
-        advanced.addWidget(self.model_size, 1, 1)
-        advanced.addWidget(label(tr('Sınıflar boyutu anlatır; kalite ve hız ölçümü değildir.'), 'status'), 2, 0, 1, 2)
-        layout.addWidget(self.model_advanced)
-        self.model_advanced.hide()
-        self.model_workflow_hint = label('', 'status')
-        layout.addWidget(self.model_workflow_hint)
-        self.model_workflow_hint.hide()
-        count_row = QHBoxLayout()
-        self.model_count = label('', 'status')
-        count_row.addWidget(self.model_count, 1)
-        reset = button(tr('Sıfırla'), self.reset_model_filters)
-        reset.setObjectName('ghost')
-        count_row.addWidget(reset)
+        self.model_size_label=label('','status');self.model_size=QSlider(Qt.Orientation.Horizontal)
+        self.model_size.setRange(1,128);self.model_size.setValue(128);self.model_size.setObjectName('librarySlider')
+        self.model_size.setAccessibleName(tr('En büyük model dosya boyutu'));self.model_size.valueChanged.connect(self.refresh_models)
+        advanced.addWidget(self.model_tier_label,1,0);advanced.addWidget(self.model_size_label,1,1)
+        advanced.addWidget(self.model_tier,2,0);advanced.addWidget(self.model_size,2,1)
+        advanced.addWidget(self.model_hardware,3,0,1,2);self.model_hardware.show()
+        layout.addWidget(self.model_advanced);self.model_advanced.hide()
+        self.model_workflow_hint=label('','status');self.model_workflow_hint.hide();layout.addWidget(self.model_workflow_hint)
+        count_row=QHBoxLayout();self.model_count=label('','status');count_row.addWidget(self.model_count,1)
+        self.model_reset=button(tr('Sıfırla'),self.reset_model_filters);self.model_reset.setObjectName('ghost');count_row.addWidget(self.model_reset)
         layout.addLayout(count_row)
-        scroll, self.model_layout = self.scroll_contents()
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        layout.addWidget(scroll,1)
+        self.model_scroll,self.model_layout=self.scroll_contents();self.model_layout.setSpacing(7)
+        self.model_scroll.setObjectName('modelListScroll');self.model_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        layout.addWidget(self.model_scroll,1)
         self.download_panel = QFrame()
         self.download_panel.setObjectName('downloadPanel')
         panel = QVBoxLayout(self.download_panel)
@@ -1527,6 +1654,11 @@ class Window(QMainWindow):
         self.download_stop.setFixedSize(28,28)
         self.download_stop.setEnabled(False)
         head.addWidget(self.download_stop)
+        self.download_close=button('',self.download_panel.hide,icon_name='close')
+        self.download_close.setToolTip(tr('İndirme bildirimini kapat'))
+        self.download_close.setFixedSize(28,28)
+        self.download_close.hide()
+        head.addWidget(self.download_close)
         panel.addLayout(head)
         self.download_progress = QProgressBar()
         self.download_progress.setRange(0,1000)
@@ -1536,7 +1668,6 @@ class Window(QMainWindow):
         panel.addWidget(self.download_details)
         self.download_panel.hide()
         layout.addWidget(self.download_panel)
-        layout.addWidget(label(tr('Yerel dosyalar · SHA-256 doğrulaması'), 'status'))
         return page
 
     def model_catalog(self):
@@ -1567,12 +1698,14 @@ class Window(QMainWindow):
             return
         if self.catalog_worker and self.catalog_worker.isRunning():
             self.catalog_worker.cancel.set()
-            self.catalog_refresh.setText(tr('Durduruluyor…'))
+            self.catalog_refresh.setToolTip(tr('Durduruluyor…'))
             self.catalog_refresh.setEnabled(False)
             return
         from ..catalog_sync import refresh_catalog
         models = self.model_catalog()
-        self.catalog_refresh.setText(tr('Durdur'))
+        self.catalog_refresh.setIcon(icon('stop'))
+        self.catalog_refresh.setToolTip(tr('Durdur'))
+        self.catalog_refresh.setAccessibleName(tr('Durdur'))
         self.catalog_worker = TaskWorker(lambda worker: refresh_catalog(
             models, self.config.runtime / 'catalog-cache.json', cancel=worker.cancel,
             progress=lambda done, total, title: worker.status.emit(f"{done}/{total}{tr(' yayıncı · ')}{title}")))
@@ -1589,7 +1722,11 @@ class Window(QMainWindow):
             self.model_count.setToolTip(text)
         self.catalog_worker.completed.connect(completed)
         self.catalog_worker.failed.connect(failed)
-        self.catalog_worker.finished.connect(lambda: (self.catalog_refresh.setText(tr('Kataloğu yenile')), self.catalog_refresh.setEnabled(True)))
+        def finished():
+            self.catalog_refresh.setText('');self.catalog_refresh.setIcon(icon('refresh'))
+            self.catalog_refresh.setToolTip(tr('Kataloğu yenile · yayıncıdaki dosyaları kontrol eder; model indirmez.'))
+            self.catalog_refresh.setAccessibleName(tr('Kataloğu yenile'));self.catalog_refresh.setEnabled(True)
+        self.catalog_worker.finished.connect(finished)
         self.catalog_worker.start()
 
     def refresh_models(self):
@@ -1641,9 +1778,15 @@ class Window(QMainWindow):
                 local_count += 1
         for model in filtered:
             groups.setdefault(model['name'], []).append(model)
-        for name, variants in groups.items():
-            self.model_layout.addWidget(self.model_card(name, variants))
-        self.model_count.setText(f"{len(groups) + local_count}{tr(' model · ')}{len(filtered) + local_count}{tr(' sürüm / ')}{len(catalog) + local_count}{tr(' · Uygunluk tahmini')}")
+        active_model=self.config.model_path()
+        if self.model_view.currentData()=='families':
+            for name,variants in groups.items():self.model_layout.addWidget(self.model_card(name,variants))
+        else:
+            for model in filtered:self.model_layout.addWidget(self.model_variant_row(model,active_model))
+        self.model_count.setText(tr('{variants} model varyantı · {families} aile · katalogda {total} varyant',variants=len(filtered)+local_count,families=len(groups)+local_count,total=len(catalog)+local_count))
+        active_filters=bool(query or self.model_brands.currentData() or capability or tier<4 or maximum_gb or category!='all')
+        self.model_reset.setVisible(active_filters)
+        self.model_advanced_toggle.setText(tr('Filtreler') + (' · '+str(sum(bool(v) for v in [self.model_brands.currentData(),capability,tier<4,maximum_gb])) if any([self.model_brands.currentData(),capability,tier<4,maximum_gb]) else ''))
         if not groups and not local_count:
             self.model_layout.addWidget(label(tr('Bu filtreye uygun model bulunamadı.'), "subtitle"))
         self.model_layout.addStretch()
@@ -1657,6 +1800,30 @@ class Window(QMainWindow):
         else:
             self.model_badge.setText(tr('Model seç'))
             self.model_badge.setToolTip(tr('Henüz model yüklenmedi · kütüphaneyi aç'))
+
+    def model_variant_row(self, model, active_model):
+        panel=QFrame();panel.setObjectName('modelVariantRow');panel.setProperty('modelId',model['id'])
+        box=QHBoxLayout(panel);box.setContentsMargins(12,9,12,9);box.setSpacing(10)
+        text=QVBoxLayout();text.setSpacing(3)
+        name=label(model['name'],'modelVariantName');name.setToolTip(model['filename']);text.addWidget(name)
+        metadata=label(model['quant'].split(' · ')[0]+' · '+memory_text(int(model['approx_gb']*1_000_000_000))+' · '+model_brand(model),'modelVariantMeta')
+        metadata.setToolTip(capability_text(model)+'\n'+tr(model.get('note','')));text.addWidget(metadata)
+        local=self.config.root/'models'/model['filename'];active=active_model==local
+        r=assess(model,self.config.settings.hardware_ram_gb,self.config.settings.hardware_vram_gb)
+        status=tr('Seçili') if active and local.is_file() else tr('Yüklü · kullanıma hazır') if local.is_file() else tr('Bağlantı yenilenmeli') if model.get('availability')=='unavailable' else tr('İndirilmedi')
+        warning=tr('Aşırı sıkıştırma: kalite kaybı yüksek olabilir') if model.get('quality')=='extreme' else tr('Düşük bit: kalite kaybı olabilir') if model.get('quality')=='low' else ''
+        fit=label(status+' · '+tr(r.label)+(' · '+warning if warning else ''),'status');fit.setToolTip(tr(r.reason)+'\n'+model.get('license',''))
+        text.addWidget(fit);box.addLayout(text,1)
+        source=button('',lambda:self.open_model_source(model),icon_name='globe');source.setObjectName('iconButton');source.setFixedSize(28,28);source.setToolTip(tr('Yayıncı ve lisans'));box.addWidget(source)
+        if model.get('projector'):
+            projector=button('',lambda:self.download_projector(model),icon_name='image');projector.setObjectName('iconButton');projector.setFixedSize(28,28)
+            projector.setToolTip(tr('Görsel desteğini indir'))
+            projector.setEnabled(not (self.config.root/'models'/model['projector']['filename']).is_file() and not (self.download_worker and self.download_worker.isRunning()))
+            box.addWidget(projector)
+        action=button(tr('Kullan') if local.is_file() else tr('İndir'),lambda:self.model_action(model),True)
+        action.setEnabled(not(active and local.is_file()) and not(self.download_worker and self.download_worker.isRunning() and not local.is_file()))
+        box.addWidget(action)
+        return panel
 
     def local_model_card(self, descriptor):
         panel, box = card()
@@ -1995,6 +2162,10 @@ class Window(QMainWindow):
         self.download_started = time.monotonic()
         self.download_offset = None
         self.download_phase = 'metadata'
+        self.download_succeeded=False
+        if hasattr(self,'download_hide_timer'):
+            self.download_hide_timer.stop()
+        self.download_close.hide()
         self.download_panel.show()
         self.download_retry.hide()
         self.download_progress.setRange(0,0)
@@ -2039,11 +2210,16 @@ class Window(QMainWindow):
             elapsed = max(.01,time.monotonic()-self.download_started)
             rate = max(0,done-self.download_offset)/elapsed
             eta = (total-done)/rate if rate else 0
-            self.download_details.setText(f'{done/1000**3:.2f} / {total/1000**3:.2f} GB · {rate/1000**2:.1f} MB/sn' + (f" · {int(eta // 60)}{tr(' dk kaldı')}" if rate else ''))
+            self.download_details.setText(f'{done/1000**3:.2f} / {total/1000**3:.2f} GB · {rate/1000**2:.1f} MB/s' + (f" · {int(eta // 60)}{tr(' dk kaldı')}" if rate else ''))
         elif self.download_phase=='verify':
             self.download_details.setText(f"{done / 1000 ** 3:.2f} / {total / 1000 ** 3:.2f}{tr(' GB kontrol edildi')}")
 
     def download_failed(self, text):
+        if self.download_worker and self.download_worker.cancel.is_set():
+            self.download_status.setText(tr('İndirme durduruldu; kısmi dosya korundu'))
+            self.download_panel.hide()
+            self.status_label.setText(tr('İndirme durduruldu; kısmi dosya korundu'))
+            return
         self.download_progress.setRange(0,1000)
         self.download_status.setText(tr(text))
         self.download_retry.show()
@@ -2051,9 +2227,16 @@ class Window(QMainWindow):
 
     def download_finished(self):
         self.download_stop.setEnabled(False)
+        self.download_close.show()
         self.refresh_models()
 
     def download_complete(self, model):
+        self.download_succeeded=True
+        if not hasattr(self,'download_hide_timer'):
+            self.download_hide_timer=QTimer(self)
+            self.download_hide_timer.setSingleShot(True)
+            self.download_hide_timer.timeout.connect(self.download_panel.hide)
+        self.download_hide_timer.start(3500)
         self.download_progress.setRange(0,1000)
         self.download_progress.setValue(1000)
         self.download_progress.setFormat('%p%')
@@ -2080,6 +2263,7 @@ class Window(QMainWindow):
         page, layout = self.page(tr('Bağlantılar'), tr('Yerel araçlar ve MCP sunucuları'))
         row = QHBoxLayout()
         row.addWidget(button(tr('Eklenti kütüphanesi'), self.open_extension_library, True, "book"))
+        row.addWidget(button(tr('Beceriler'), lambda: self.open_extension_library(initial_tab=2), icon_name="tools"))
         row.addWidget(button(tr('Özel bağlantı'), lambda: self.add_mcp(), icon_name="plus"))
         row.addWidget(button(tr('İçe aktar'), self.import_mcp, icon_name="file"))
         row.addStretch()
@@ -2246,7 +2430,7 @@ class Window(QMainWindow):
             return
         spec = copy.deepcopy(self.config.settings.mcp_servers[index])
         def action(worker):
-            client = MCPClient(spec).open()
+            client = MCPClient(spec,cancel=worker.cancel,timeout=20).open()
             try:
                 return client.tools()
             finally:
@@ -2264,6 +2448,10 @@ class Window(QMainWindow):
         row.addWidget(button(tr('Yenile'), self.refresh_workspace))
         row.addWidget(button('GitHub', self.open_github, icon_name='code'))
         row.addStretch()
+        self.workspace_preview_toggle=button(tr('Önizleme'),self.toggle_document_preview,icon_name='book')
+        self.workspace_preview_toggle.setCheckable(True)
+        self.workspace_preview_toggle.setEnabled(False)
+        row.addWidget(self.workspace_preview_toggle)
         row.addWidget(button(tr('Sohbete ekle'), self.attach_editor, icon_name="plus"))
         row.addWidget(button(tr('Kaydet'), self.save_file, True, "save"))
         layout.addLayout(row)
@@ -2277,10 +2465,26 @@ class Window(QMainWindow):
         self.editor.setFont(QFont("JetBrains Mono", 12))
         self.editor.setPlaceholderText(tr('Dosyalar burada açılır.'))
         self.editor.setReadOnly(True)
-        splitter.addWidget(self.editor)
+        self.document_views=QStackedWidget()
+        self.document_views.addWidget(self.editor)
+        self.document_preview=QTextBrowser()
+        self.document_preview.setObjectName('documentPreview')
+        self.document_preview.setOpenLinks(False)
+        self.document_preview.anchorClicked.connect(lambda url:QDesktopServices.openUrl(url) if url.scheme() in {'http','https'} else None)
+        self.document_views.addWidget(self.document_preview)
+        splitter.addWidget(self.document_views)
         splitter.setSizes([240, 650])
         layout.addWidget(splitter, 1)
         return page
+
+    def toggle_document_preview(self):
+        preview=self.workspace_preview_toggle.isChecked()
+        if preview:
+            if self.edit_path and self.edit_path.suffix.casefold() in {'.md','.markdown'}:
+                self.document_preview.setMarkdown(self.editor.toPlainText())
+            else:
+                self.document_preview.setPlainText(self.editor.toPlainText())
+        self.document_views.setCurrentIndex(1 if preview else 0)
 
     def refresh_workspace(self):
         self.file_list.clear()
@@ -2312,6 +2516,8 @@ class Window(QMainWindow):
             self.edit_original = text
             self.editor.setPlainText(text)
             self.editor.setReadOnly(False)
+            self.workspace_preview_toggle.setEnabled(True)
+            self.toggle_document_preview()
             self.workspace_label.setText(path.name)
             self.workspace_label.setToolTip(str(path))
         except Exception as exc:
@@ -2341,6 +2547,7 @@ class Window(QMainWindow):
         self.attachments.append({'name': self.edit_path.name, 'text': self.editor.toPlainText()})
         self.attachment_label.setText(tr('Ekler: ') + ", ".join(a['name'] for a in self.attachments))
         self.attachment_label.show()
+        self.refresh_attachment_previews()
         self.navigate(0)
 
     def build_team(self):
@@ -3280,6 +3487,10 @@ class Window(QMainWindow):
         self.refresh_jobs()
         self.refresh_usage()
         self.update_chat_options()
+        from .integrations import IntegrationHub
+        for hub in self.findChildren(IntegrationHub):
+            if not hub.worker:
+                for panel in (hub.mcp,hub.apps,hub.skills):panel.refresh()
         self.navigate(self.pages.currentIndex())
         for col, title in enumerate([tr('Model'), tr('Girdi'), tr('Çıktı'), tr('İstek')]):
             self.usage_table.horizontalHeaderItem(col).setText(title)

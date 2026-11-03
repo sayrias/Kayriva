@@ -6,6 +6,8 @@
     <sub-class-of type="application/x-executable"/>
     <icon name="io.github.sayrias.Kayriva"/>
     <generic-icon name="application-x-executable"/>
+    <glob pattern="Kayriva-x86_64.AppImage" weight="80" case-sensitive="true"/>
+    <glob pattern="Kayriva-aarch64.AppImage" weight="80" case-sensitive="true"/>
     <glob pattern="Kayriva" weight="80" case-sensitive="true"/>
   </mime-type>
 </mime-info>

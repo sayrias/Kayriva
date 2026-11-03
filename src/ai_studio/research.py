@@ -4,6 +4,7 @@ import concurrent.futures
 import ipaddress
 import socket
 import re
+import time
 from dataclasses import dataclass, asdict
 from html.parser import HTMLParser
 from urllib.parse import parse_qs, urlparse, urldefrag
@@ -75,23 +76,39 @@ class Research:
         self.settings = settings
 
     @staticmethod
-    def parallel(action,values,cancel):
+    def parallel(action,values,cancel, *, timeout=None, stop_when=lambda:False, heartbeat=lambda:None):
         if cancel.is_set():raise InterruptedError('Araştırma durduruldu')
         pool=concurrent.futures.ThreadPoolExecutor(max_workers=3)
-        tasks={pool.submit(action,value):value for value in values}
-        pending=set(tasks)
+        values=iter(values)
+        tasks={}
+        deadline=time.monotonic()+timeout if timeout is not None else None
+        def add():
+            try:value=next(values)
+            except StopIteration:return False
+            tasks[pool.submit(action,value)]=value
+            return True
+        for _ in range(3):
+            if not add():break
         try:
-            while pending:
+            while tasks:
                 if cancel.is_set():raise InterruptedError('Araştırma durduruldu')
-                completed,pending=concurrent.futures.wait(pending,timeout=.1,return_when=concurrent.futures.FIRST_COMPLETED)
-                for future in completed:yield future,tasks[future]
+                if deadline is not None and time.monotonic()>=deadline:
+                    raise TimeoutError('Araştırma aşamasının süre bütçesi doldu; bulunan kaynaklar korunuyor.')
+                if stop_when():break
+                completed,_=concurrent.futures.wait(tasks,timeout=.1,return_when=concurrent.futures.FIRST_COMPLETED)
+                heartbeat()
+                for future in completed:
+                    yield future,tasks.pop(future)
+                while len(tasks)<3 and not stop_when():
+                    if not add():break
         finally:
-            pool.shutdown(wait=not cancel.is_set(),cancel_futures=True)
+            # A blocked provider socket must not hold Cancel or a phase budget.
+            pool.shutdown(wait=False,cancel_futures=True)
 
     def search(self, query, count=6):
         if self.settings.offline:
             raise ValueError("Çevrimdışı modda web araması kapalı")
-        with httpx.Client(trust_env=False, timeout=20, follow_redirects=True, headers={"User-Agent": "Kayriva/0.1 (desktop research)"}) as client:
+        with httpx.Client(trust_env=False, timeout=httpx.Timeout(12,connect=5), follow_redirects=True, headers={"User-Agent": "Kayriva/0.1 (desktop research)"}) as client:
             if self.settings.search_provider == "searxng":
                 response = client.get(self.settings.searx_url.rstrip("/") + "/search", params={"q": query, "format": "json"})
                 response.raise_for_status()
@@ -172,17 +189,39 @@ class Research:
         queries = self.build_queries(query,mode,queries,query_limit)
         sources, errors, seen = [], [], set()
         status(f"Web’de {len(queries)} sorgu araştırılıyor…")
-        for future,_ in self.parallel(lambda q:self.search(q,count),queries,cancel):
-            try:
-                for source in future.result():
-                    source.url=urldefrag(source.url)[0]
-                    if source.url not in seen and len(sources)<source_limit:
-                        seen.add(source.url)
-                        sources.append(asdict(source))
-            except Exception as exc:
-                errors.append(str(exc))
+        started=time.monotonic();last_notice=started
+        failures=0;attempted_queries=0
+        def heartbeat():
+            nonlocal last_notice
+            now=time.monotonic()
+            if now-last_notice>=5:
+                status(f'Arama sağlayıcısı yanıtı bekleniyor · {int(now-started)} sn · {attempted_queries}/{len(queries)} sorgu')
+                last_notice=now
+        try:
+            for future,_ in self.parallel(lambda q:self.search(q,count),queries,cancel,
+                    timeout={'quick':15,'detailed':35,'deep':60}[mode],
+                    stop_when=lambda:failures>=3 or len(sources)>=source_limit,heartbeat=heartbeat):
+                attempted_queries+=1
+                try:
+                    for source in future.result():
+                        source.url=urldefrag(source.url)[0]
+                        if source.url not in seen and len(sources)<source_limit:
+                            seen.add(source.url)
+                            sources.append(asdict(source))
+                    failures=0
+                except InterruptedError:raise
+                except Exception as exc:
+                    failures+=1
+                    errors.append(str(exc))
+        except TimeoutError as exc:
+            errors.append(str(exc))
+            status(str(exc))
+        if failures>=3:
+            status('Arama sağlayıcısı art arda yanıt vermedi · aynı istekler tekrar edilmiyor')
         if not sources:
-            raise RuntimeError("; ".join(errors))
+            raise RuntimeError('Web araması tamamlanamadı: '+ '; '.join(dict.fromkeys(errors))[:1000])
+        if callable(getattr(self, 'on_sources', None)):
+            self.on_sources(sources)
         status(f"{len(sources)} kaynak bulundu" + (f" · {len(errors)} sorgu başarısız" if errors else ""))
         sources=self.diverse(sources)
         page_limit={'quick':0,'detailed':10,'deep':max(8,min(160,int(self.settings.research_pages)))}[mode]
@@ -190,14 +229,23 @@ class Research:
             selected=sources[:page_limit]
             status(f'{len(selected)} kaynak metni inceleniyor…')
             read=0;attempted=0
-            for future,source in self.parallel(lambda s:self.read_page(s['url'],cancel),selected,cancel):
-                try:source['text']=future.result();read+=1
-                except InterruptedError:raise
-                except Exception:source['read_error']='Kaynak metni alınamadı; yalnızca arama özeti kullanıldı.'
-                attempted+=1
-                status(f'Kaynaklar inceleniyor · {attempted}/{len(selected)} sayfa · {read} metin okundu')
+            try:
+                for future,source in self.parallel(lambda s:self.read_page(s['url'],cancel),selected,cancel,
+                        timeout={'quick':0,'detailed':35,'deep':75}[mode]):
+                    try:source['text']=future.result();read+=1
+                    except InterruptedError:raise
+                    except Exception:source['read_error']='Kaynak metni alınamadı; yalnızca arama özeti kullanıldı.'
+                    attempted+=1
+                    status(f'Kaynaklar inceleniyor · {attempted}/{len(selected)} sayfa · {read} metin okundu')
+                    if callable(getattr(self, 'on_sources', None)):
+                        self.on_sources(sources)
+            except TimeoutError:
+                status('Kaynak okuma süresi doldu · okunan metinler ve diğer arama özetleriyle devam ediliyor')
+                for source in selected:
+                    if not source.get('text') and not source.get('read_error'):
+                        source['read_error']='Süre bütçesi nedeniyle sayfa okunmadı; yalnızca arama özeti.'
             domains=len({urlparse(s['url']).hostname for s in sources})
-            status(f'{len(queries)} sorgu · {len(sources)} kaynak · {domains} site · {read} metin incelendi')
+            status(f'{attempted_queries} sorgu · {len(sources)} kaynak · {domains} site · {read} metin incelendi')
         return sources
 
     @staticmethod

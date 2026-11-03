@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "verified": "2026-11-02",
+  "verified": "2026-11-03",
   "entries": [
     {
       "id": "filesystem",
@@ -41,7 +41,8 @@
       "args": [
         "--headless"
       ],
-      "permissions": "Tarayıcı üzerinden internete erişir; formlar ve oturum açılmış sayfalarda işlem yapabilir. Tarayıcı motoru ayrıca gerekli olabilir."
+      "permissions": "Tarayıcı üzerinden internete erişir; formlar ve oturum açılmış sayfalarda işlem yapabilir. Tarayıcı motoru ayrıca gerekli olabilir.",
+      "app": true
     },
     {
       "id": "fetch",
@@ -124,7 +125,8 @@
       "header_env": {
         "Authorization": "KAYRIVA_GITHUB_AUTHORIZATION"
       },
-      "permissions": "GitHub'a bağlanır. KAYRIVA_GITHUB_AUTHORIZATION ortam değişkeni Bearer önekiyle tanımlanmalı; anahtar uygulama ayarına kaydedilmez. OAuth ekranı desteklenmez."
+      "permissions": "GitHub'a bağlanır. KAYRIVA_GITHUB_AUTHORIZATION ortam değişkeni Bearer önekiyle tanımlanmalı; anahtar uygulama ayarına kaydedilmez. OAuth ekranı desteklenmez.",
+      "app": true
     },
     {
       "id": "deepwiki",
@@ -190,7 +192,8 @@
       "source": "https://huggingface.co/docs/hub/agents-mcp",
       "kind": "http",
       "url": "https://huggingface.co/mcp",
-      "permissions": "Sorgular Hugging Face hizmetine gönderilir. Özel içerik ve hesap işlemleri kimlik doğrulama gerektirir; bu bağlantı hesap anahtarı içermez."
+      "permissions": "Sorgular Hugging Face hizmetine gönderilir. Özel içerik ve hesap işlemleri kimlik doğrulama gerektirir; bu bağlantı hesap anahtarı içermez.",
+      "app": true
     },
     {
       "id": "brave-search",
@@ -208,7 +211,8 @@
       "required_env": [
         "BRAVE_API_KEY"
       ],
-      "permissions": "Arama sorguları Brave hizmetine gönderilir. BRAVE_API_KEY ortam değişkenini tanımla; hizmet planına göre ücret veya kullanım sınırı uygulanabilir."
+      "permissions": "Arama sorguları Brave hizmetine gönderilir. BRAVE_API_KEY ortam değişkenini tanımla; hizmet planına göre ücret veya kullanım sınırı uygulanabilir.",
+      "app": true
     },
     {
       "id": "tavily",
@@ -222,7 +226,433 @@
       "required_env": [
         "TAVILY_API_KEY"
       ],
-      "permissions": "Sorgular ve taranacak adresler Tavily hizmetine gönderilir. TAVILY_API_KEY ortam değişkenini tanımla; hizmet planına göre ücret veya kullanım sınırı uygulanabilir."
+      "permissions": "Sorgular ve taranacak adresler Tavily hizmetine gönderilir. TAVILY_API_KEY ortam değişkenini tanımla; hizmet planına göre ücret veya kullanım sınırı uygulanabilir.",
+      "app": true
+    },
+    {
+      "id": "chrome-devtools",
+      "name": "Chrome DevTools",
+      "publisher": "Google · Chrome DevTools",
+      "category": "Geliştirme",
+      "description": "Chrome sayfalarını inceleme, ekran görüntüsü, konsol, ağ ve performans araçları. Chrome ve güncel Node.js gerekir.",
+      "source": "https://github.com/ChromeDevTools/chrome-devtools-mcp",
+      "kind": "npm",
+      "package": "chrome-devtools-mcp",
+      "bin": "chrome-devtools-mcp",
+      "icon": "code",
+      "args": [
+        "--headless",
+        "--isolated",
+        "--no-usage-statistics",
+        "--no-performance-crux"
+      ],
+      "env": {
+        "CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS": "1",
+        "CHROME_DEVTOOLS_MCP_NO_UPDATE_CHECKS": "1",
+        "CHROME_DEVTOOLS_MCP_NO_CONFIG_DISCOVERY": "1"
+      },
+      "permissions": "Ayrı, geçici Chrome profili açar; mevcut kişisel tarayıcı oturumuna bağlanmaz. Sayfalarda işlem ve JavaScript çalıştırabilir. MCP kullanım istatistikleri ve CrUX adres paylaşımı kapalıdır.",
+      "app": true
+    },
+    {
+      "id": "exa",
+      "name": "Exa",
+      "publisher": "Exa",
+      "category": "Araştırma",
+      "icon": "search",
+      "description": "Web araması ve sayfa içeriklerini getirme. Anahtarsız uzak bağlantı sınırlı kullanılabilir; ayrı ajan işleri bu başlangıç yapılandırmasında açılmaz.",
+      "source": "https://github.com/exa-labs/exa-mcp-server",
+      "kind": "http",
+      "url": "https://mcp.exa.ai/mcp",
+      "permissions": "Sorgular ve okunacak sayfa adresleri Exa hizmetine gönderilir. Hizmetin hız ve kullanım sınırları geçerlidir; yerel dosyalara erişmez.",
+      "app": true
+    },
+    {
+      "id": "firecrawl",
+      "name": "Firecrawl",
+      "publisher": "Firecrawl",
+      "category": "Araştırma",
+      "icon": "globe",
+      "description": "Web araması, sayfa çıkarma, site haritası ve çok sayfalı tarama. Node.js 22+ ve Firecrawl API anahtarın gerekir.",
+      "source": "https://github.com/firecrawl/firecrawl-mcp-server",
+      "kind": "npm",
+      "package": "firecrawl-mcp",
+      "bin": "firecrawl-mcp",
+      "required_env": [
+        "FIRECRAWL_API_KEY"
+      ],
+      "permissions": "Sorgular ve adresler Firecrawl hizmetine gönderilir. Kullanılan sayfa ve işlemler hizmet kredisi tüketebilir. Anahtar FIRECRAWL_API_KEY ortamından okunur; uygulama ayarına yazılmaz.",
+      "app": true
+    },
+    {
+      "id": "svelte",
+      "name": "Svelte",
+      "publisher": "Svelte",
+      "category": "Dokümantasyon",
+      "icon": "code",
+      "description": "Resmî Svelte ve SvelteKit dokümanları; Svelte kodunu statik analiz eden düzeltme önerileri ve Playground bağlantıları.",
+      "source": "https://svelte.dev/docs/ai/remote-setup",
+      "kind": "http",
+      "url": "https://mcp.svelte.dev/mcp",
+      "permissions": "Sorgular ve analize verilen kod Svelte sunucusuna gönderilir. Yerel dosyaları doğrudan değiştirmez; önerileri proje araçları uygular."
+    },
+    {
+      "id": "astro",
+      "name": "Astro Docs",
+      "publisher": "Astro",
+      "category": "Dokümantasyon",
+      "icon": "book",
+      "description": "Astro yönlendirme, içerik koleksiyonları, bağdaştırıcılar ve yapılandırma hakkında güncel resmî doküman araması.",
+      "source": "https://docs.astro.build/en/guides/build-with-ai/",
+      "kind": "http",
+      "url": "https://mcp.docs.astro.build/mcp",
+      "permissions": "Arama sorguları Astro dokümantasyon hizmetine gönderilir. Hesap veya API anahtarı gerekmez; yerel dosyalara erişmez."
+    },
+    {
+      "id": "aws-knowledge",
+      "name": "AWS Knowledge",
+      "publisher": "Amazon Web Services",
+      "category": "Dokümantasyon",
+      "icon": "book",
+      "description": "Resmî AWS belgeleri, API referansları, kod örnekleri ve bölgesel hizmet kullanılabilirliği. AWS hesabı gerektirmez.",
+      "source": "https://awslabs.github.io/mcp/servers/aws-knowledge-mcp-server",
+      "kind": "http",
+      "url": "https://knowledge-mcp.global.api.aws",
+      "permissions": "Sorgular AWS'nin uzak bilgi hizmetine gönderilir. Hesap kaynakları oluşturmaz veya dağıtım yapmaz; hizmetin kullanım sınırları geçerlidir."
+    },
+    {
+      "id": "linear",
+      "name": "Linear",
+      "publisher": "Linear",
+      "category": "Üretkenlik",
+      "description": "Linear çalışma alanında görev, proje ve yorumları bulma, oluşturma ve güncelleme. Kendi Linear API anahtarın veya erişim tokenın gerekir.",
+      "source": "https://linear.app/docs/mcp",
+      "kind": "http",
+      "url": "https://mcp.linear.app/mcp",
+      "header_env": {
+        "Authorization": "KAYRIVA_LINEAR_AUTHORIZATION"
+      },
+      "permissions": "Linear hesabında tokenın izin verdiği okuma ve yazma işlemleri yapabilir. Ortam değerini Bearer önekiyle tanımla; tarayıcı OAuth akışı bu istemcide yoktur.",
+      "app": true,
+      "icon": "plan"
+    },
+    {
+      "id": "neon",
+      "name": "Neon",
+      "publisher": "Neon",
+      "category": "Veri",
+      "description": "Neon Postgres projeleri, dalları ve sorguları için resmî araçlar. Neon API anahtarın gerekir; yetkiler anahtarın kapsamına bağlıdır.",
+      "source": "https://neon.com/docs/ai/neon-mcp-server",
+      "kind": "http",
+      "url": "https://mcp.neon.tech/mcp",
+      "header_env": {
+        "Authorization": "KAYRIVA_NEON_AUTHORIZATION"
+      },
+      "permissions": "Neon hizmetine bağlanır; veritabanı ve proje işlemleri hesabında gerçek değişiklik yapabilir. Ortam değerini Bearer önekiyle tanımla. Üretim verileri yerine geliştirme dalı kullan.",
+      "app": true,
+      "icon": "models"
+    },
+    {
+      "id": "supabase",
+      "name": "Supabase",
+      "publisher": "Supabase",
+      "category": "Veri",
+      "description": "Supabase proje, şema ve dokümantasyon inceleme araçları. Bu başlangıç bağlantısı read_only=true ile yalnızca okuma modundadır.",
+      "source": "https://supabase.com/docs/guides/ai-tools/mcp",
+      "kind": "http",
+      "url": "https://mcp.supabase.com/mcp?read_only=true",
+      "header_env": {
+        "Authorization": "KAYRIVA_SUPABASE_AUTHORIZATION"
+      },
+      "permissions": "Kişisel erişim tokenının izin verdiği Supabase verilerine erişir. Ortam değerini Bearer önekiyle tanımla. Okuma modu verilerin hassasiyetini ortadan kaldırmaz; proje kapsamını yapılandırmadan daraltabilirsin.",
+      "app": true,
+      "icon": "models"
+    },
+    {
+      "id": "stripe",
+      "name": "Stripe",
+      "publisher": "Stripe",
+      "category": "Üretkenlik",
+      "description": "Stripe API ve bilgi tabanı araçları. Kendi Stripe ajan API anahtarın gerekir; bu bağlantı bir ödeme aboneliği sağlamaz.",
+      "source": "https://docs.stripe.com/mcp",
+      "kind": "http",
+      "url": "https://mcp.stripe.com",
+      "header_env": {
+        "Authorization": "KAYRIVA_STRIPE_AUTHORIZATION"
+      },
+      "permissions": "Stripe hesabında anahtarın yetkileriyle işlem yapar. Ortam değerini Bearer önekiyle tanımla; mümkünse test ortamı ve sınırlı ajan anahtarı kullan. İşlemler hesabında gerçek etkiler oluşturabilir.",
+      "app": true,
+      "icon": "shield"
+    },
+    {
+      "id": "sentry",
+      "name": "Sentry",
+      "publisher": "Sentry",
+      "category": "Geliştirme",
+      "description": "Sentry hata, olay ve performans verilerini inceleme. Bazı gelişmiş arama veya analiz araçları ayrıca hizmet planı ya da model sağlayıcısı gerektirebilir.",
+      "source": "https://github.com/getsentry/sentry-mcp",
+      "kind": "http",
+      "url": "https://mcp.sentry.dev/mcp",
+      "header_env": {
+        "Authorization": "KAYRIVA_SENTRY_AUTHORIZATION"
+      },
+      "permissions": "Sentry verileri ve tokenın izin verdiği araçlar kullanılır. Ortam değerini Sentry-Bearer önekiyle tanımla; standart Bearer öneki doğrudan Sentry tokenı için uygun değildir.",
+      "app": true,
+      "icon": "tools",
+      "auth_prefix": "Sentry-Bearer"
+    },
+    {
+      "id": "mongodb",
+      "name": "MongoDB",
+      "publisher": "MongoDB",
+      "category": "Veri",
+      "description": "MongoDB koleksiyonlarını ve belgelerini inceleme. Bu başlangıç yapılandırması yalnızca okuma modundadır; kendi bağlantı adresin gerekir.",
+      "source": "https://github.com/mongodb-js/mongodb-mcp-server",
+      "kind": "npm",
+      "package": "mongodb-mcp-server",
+      "args": [
+        "--readOnly"
+      ],
+      "required_env": [
+        "MDB_MCP_CONNECTION_STRING"
+      ],
+      "permissions": "MDB_MCP_CONNECTION_STRING ortamındaki adrese bağlanır ve erişim verilen verileri okur. Kimlik bilgisi içeren bağlantı adresi uygulama ayarına kopyalanmaz; veritabanı hesabını da sınırlı yetkiyle oluştur.",
+      "app": true,
+      "icon": "models"
+    },
+    {
+      "id": "resend",
+      "name": "Resend",
+      "publisher": "Resend",
+      "category": "Üretkenlik",
+      "description": "Resend üzerinden e-posta, kişi, alan adı ve yayın işlemleri. Kendi API anahtarın ve ilgili gönderici yetkilerin gerekir.",
+      "source": "https://github.com/resend/resend-mcp",
+      "kind": "http",
+      "url": "https://mcp.resend.com/mcp",
+      "header_env": {
+        "Authorization": "KAYRIVA_RESEND_AUTHORIZATION"
+      },
+      "permissions": "Gerçek e-posta gönderebilir ve hesabın içeriğini değiştirebilir. Ortam değerini Bearer önekiyle tanımla. Anahtarın izinleri ve hizmetin kullanım ücretleri geçerlidir.",
+      "app": true,
+      "icon": "send"
+    },
+    {
+      "id": "angular",
+      "name": "Angular CLI",
+      "publisher": "Angular",
+      "category": "Geliştirme",
+      "description": "Angular dokümantasyonu ve seçilen çalışma alanı için resmî CLI araçları. Güncel Node.js ve Angular sürüm uyumu gerekir.",
+      "source": "https://angular.dev/ai/mcp",
+      "kind": "npm",
+      "package": "@angular/cli",
+      "bin": "ng",
+      "workspace": true,
+      "args": [
+        "mcp"
+      ],
+      "env": {
+        "NG_CLI_ANALYTICS": "false"
+      },
+      "permissions": "Seçilen proje klasöründe Angular araçları çalışabilir; kullanılabilir araçlara göre kod üretme, derleme veya test işlemleri sunabilir. Analitik paylaşımı kapalı başlatılır.",
+      "app": true,
+      "icon": "code"
+    },
+    {
+      "id": "shadcn",
+      "name": "shadcn/ui",
+      "publisher": "shadcn/ui",
+      "category": "Geliştirme",
+      "description": "Resmî bileşen kayıtlarını arama, bileşen ayrıntıları ve ekleme yönergeleri. Projenin components.json yapılandırması kapsamı belirler.",
+      "source": "https://ui.shadcn.com/docs/mcp",
+      "kind": "npm",
+      "package": "shadcn",
+      "bin": "shadcn",
+      "workspace": true,
+      "args": [
+        "mcp"
+      ],
+      "permissions": "Seçilen projenin bileşen yapılandırmasını okuyabilir ve kayıt sağlayıcılarına bağlanır. Döndürülen komut önerileri kendiliğinden çalıştırılmış sayılmaz; gerçek işlemler mevcut araçlara bağlıdır.",
+      "icon": "code"
+    },
+    {
+      "id": "nuxt-ui",
+      "name": "Nuxt UI",
+      "publisher": "Nuxt",
+      "category": "Dokümantasyon",
+      "description": "Nuxt UI bileşenleri, özellikleri, örnekleri ve resmî dokümantasyonu için uzak referans araçları.",
+      "source": "https://ui.nuxt.com/docs/getting-started/ai/mcp",
+      "kind": "http",
+      "url": "https://ui.nuxt.com/mcp",
+      "permissions": "Sorgular Nuxt UI dokümantasyon hizmetine gönderilir. Yerel projeye doğrudan dosya yazmaz veya uygulama dağıtmaz.",
+      "icon": "book"
+    },
+    {
+      "id": "qdrant",
+      "name": "Qdrant",
+      "publisher": "Qdrant",
+      "category": "Veri",
+      "description": "Qdrant koleksiyonlarında anlamsal bilgi arama. Başlangıç yapılandırması yalnızca okuma modundadır; erişilebilir Qdrant sunucusu gerekir.",
+      "source": "https://github.com/qdrant/mcp-server-qdrant",
+      "kind": "python",
+      "package": "mcp-server-qdrant",
+      "entry": "mcp-server-qdrant",
+      "required_env": [
+        "QDRANT_URL"
+      ],
+      "env": {
+        "QDRANT_READ_ONLY": "true"
+      },
+      "permissions": "QDRANT_URL adresindeki koleksiyona sorgu gönderir; özel hizmet için ayrıca QDRANT_API_KEY gerekebilir. İlk kullanımda FastEmbed modeli indirilebilir ve ek disk/RAM tüketir.",
+      "app": true,
+      "icon": "models"
+    },
+    {
+      "id": "mcp-docs",
+      "name": "Model Context Protocol Docs",
+      "publisher": "Model Context Protocol",
+      "category": "Dokümantasyon",
+      "description": "MCP standardının resmî belgelerinde arama ve bağlantı protokolü referansları.",
+      "source": "https://github.com/modelcontextprotocol/servers/blob/main/.mcp.json",
+      "kind": "http",
+      "url": "https://modelcontextprotocol.io/mcp",
+      "permissions": "Belge sorgularını resmî MCP dokümantasyon hizmetine gönderir. Yerel sunucu kurmaz veya dosya değiştirmez.",
+      "icon": "book"
+    },
+    {
+      "id": "todoist",
+      "name": "Todoist",
+      "publisher": "Doist",
+      "category": "Üretkenlik",
+      "kind": "npm",
+      "package": "@doist/todoist-mcp",
+      "bin": "todoist-mcp",
+      "required_env": [
+        "TODOIST_API_KEY"
+      ],
+      "source": "https://github.com/Doist/todoist-mcp/blob/main/docs/mcp-server.md",
+      "icon": "plan",
+      "app": true,
+      "description": "Görev, proje, etiket ve yorumlarla Todoist çalışma alanını yönetir. Kendi Todoist API anahtarın gerekir.",
+      "permissions": "TODOIST_API_KEY ortamından kendi hesabına bağlanır; görevler oluşturulabilir, güncellenebilir ve tamamlanabilir. Hizmetin hesap izinleri ve kullanım sınırları geçerlidir."
+    },
+    {
+      "id": "notion",
+      "name": "Notion",
+      "publisher": "Notion",
+      "category": "Üretkenlik",
+      "kind": "npm",
+      "package": "@notionhq/notion-mcp-server",
+      "required_env": [
+        "NOTION_TOKEN"
+      ],
+      "source": "https://github.com/makenotion/notion-mcp-server",
+      "icon": "book",
+      "app": true,
+      "description": "Notion sayfalarını, bloklarını ve veritabanlarını resmî yerel MCP sunucusuyla kullanır. İçerik entegrasyonunla paylaşılmış olmalıdır.",
+      "permissions": "NOTION_TOKEN ortamından entegrasyonuna bağlanır. Paylaşılan Notion içeriğini okuyabilir ve değiştirebilir; yalnızca gerekli sayfaları entegrasyonla paylaş."
+    },
+    {
+      "id": "redis",
+      "name": "Redis",
+      "publisher": "Redis",
+      "category": "Veri",
+      "kind": "python",
+      "package": "redis-mcp-server",
+      "entry": "redis-mcp-server",
+      "required_env": [
+        "REDIS_HOST",
+        "REDIS_PORT"
+      ],
+      "source": "https://github.com/redis/mcp-redis",
+      "icon": "models",
+      "app": true,
+      "description": "Redis verilerini ve arama işlemlerini resmî MCP sunucusuyla yönetir. Erişilebilir Redis sunucusu ve uygun ACL hesabı gerekir.",
+      "permissions": "REDIS_HOST ve REDIS_PORT adresine bağlanır; gerekiyorsa REDIS_PWD ve REDIS_USERNAME ortam değerlerini kullanır. Verileri değiştirebilir; yalnızca okuma için Redis hesabına ACL kısıtı koy."
+    },
+    {
+      "id": "next-devtools",
+      "name": "Next.js DevTools",
+      "publisher": "Vercel",
+      "category": "Geliştirme",
+      "kind": "npm",
+      "package": "next-devtools-mcp",
+      "workspace": true,
+      "source": "https://github.com/vercel/next-devtools-mcp",
+      "icon": "code",
+      "app": true,
+      "description": "Next.js geliştirme sunucusunda hata, rota, günlük ve dokümantasyon inceleme araçları. Projenin geliştirme sunucusu ayrıca açık olmalıdır.",
+      "permissions": "Yerel Next.js geliştirme sunucusunu keşfeder; proje ayrıntıları ve günlükleri okunabilir. Sunulan tarayıcı veya kod araçları yerel projeye erişebilir; geliştirme sunucusunu kendiliğinden açılmış sayma."
+    },
+    {
+      "id": "apify",
+      "name": "Apify",
+      "publisher": "Apify",
+      "category": "Araştırma",
+      "kind": "npm",
+      "package": "@apify/actors-mcp-server",
+      "required_env": [
+        "APIFY_TOKEN"
+      ],
+      "source": "https://github.com/apify/apify-mcp-server",
+      "icon": "globe",
+      "app": true,
+      "description": "Apify Store üzerindeki tarama ve veri çıkarma araçlarını arar ve çalıştırabilir. Node.js 22+ ve kendi Apify tokenın gerekir.",
+      "permissions": "APIFY_TOKEN ortamından hesabına bağlanır; Actor çalıştırmak hizmet kredisi tüketebilir. Gönderilen adresler ve girdiler Apify hizmetinde işlenir; hesabın kullanım ücretleri geçerlidir."
+    },
+    {
+      "id": "duckdb",
+      "name": "DuckDB",
+      "publisher": "MotherDuck",
+      "category": "Veri",
+      "kind": "python",
+      "package": "mcp-server-motherduck",
+      "entry": "mcp-server-motherduck",
+      "args": [
+        "--db-path",
+        ":memory:",
+        "--read-write"
+      ],
+      "source": "https://github.com/motherduckdb/mcp-server-motherduck",
+      "icon": "models",
+      "description": "Geçici, bellekte tutulan DuckDB veritabanında SQL inceleme ve analiz. Bu başlangıç bağlantısı MotherDuck hesabına bağlanmaz.",
+      "permissions": "Bellekteki veritabanında sorgu ve yazma işlemleri yapabilir; süreç kapandığında içerik silinir. DuckDB sorguları yerel dosya veya ağ erişimi de sağlayabileceğinden yalnızca güvendiğin sorguları çalıştır."
+    },
+    {
+      "id": "figma-desktop",
+      "name": "Figma Desktop",
+      "publisher": "Figma",
+      "category": "Geliştirme",
+      "kind": "http",
+      "url": "http://127.0.0.1:3845/mcp",
+      "local_http": true,
+      "source": "https://developers.figma.com/docs/figma-mcp-server/local-server-installation/",
+      "icon": "code",
+      "app": true,
+      "requirement": "Figma masaüstü uygulamasında Dev Mode MCP sunucusunu aç; uygun Figma koltuğu ve planı gerekir.",
+      "description": "Açık Figma tasarımını kendi masaüstü MCP sunucusundan okur. Figma uygulaması ve uygun Dev veya Full koltuğu gerekir.",
+      "permissions": "Yalnızca 127.0.0.1 üzerindeki Figma masaüstü sunucusuna bağlanır. Tasarım bağlamı okunur; bu bağlantı uzak Figma hesabına giriş yapmaz ve tuvale yazma sunmaz."
+    },
+    {
+      "id": "paypal-sandbox",
+      "name": "PayPal Sandbox",
+      "publisher": "PayPal",
+      "category": "Üretkenlik",
+      "kind": "npm",
+      "package": "@paypal/mcp",
+      "args": [
+        "--tools=all"
+      ],
+      "required_env": [
+        "PAYPAL_ACCESS_TOKEN"
+      ],
+      "env": {
+        "PAYPAL_ENVIRONMENT": "SANDBOX"
+      },
+      "source": "https://developer.paypal.com/ai-tools/mcp-server",
+      "icon": "shield",
+      "app": true,
+      "description": "PayPal işlemlerini test ortamında yönetmek için resmî MCP sunucusu. Kendi sandbox erişim tokenın ve Node.js 18+ gerekir.",
+      "permissions": "PAYPAL_ACCESS_TOKEN ortamından bağlanır; başlangıç ortamı SANDBOX olarak sabittir. Test faturaları ve diğer sandbox kaynakları değiştirilebilir. Canlı üretim erişimi bu başlangıç kaydında açılmaz."
     }
   ]
 }

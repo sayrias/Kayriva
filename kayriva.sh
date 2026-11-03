@@ -15,7 +15,7 @@ Kayriva — tek dosyadan yönetim
   ./kayriva.sh                 Etkileşimli menü
   ./kayriva.sh start [arg...]  Uygulamayı kaynak koddan aç
   ./kayriva.sh setup           Linux Python ortamını ve bağımlılıkları kur
-  ./kayriva.sh build           Linux tek dosyalı uygulamasını derle
+  ./kayriva.sh build           Linux AppImage uygulamasını derle
   ./kayriva.sh archive-linux   Mevcut Linux paketinden .tar.gz arşivi üret
   ./kayriva.sh run [arg...]    Derlenmiş Linux uygulamasını aç
   ./kayriva.sh setup-windows   Wine içinde Windows Python ve bağımlılıkları kur
@@ -27,7 +27,7 @@ Kayriva — tek dosyadan yönetim
   ./kayriva.sh status          Ortam ve çıktı konumlarını göster
   ./kayriva.sh help            Bu açıklamayı göster
 
-Çıktılar: dist/linux/Kayriva, Linux .tar.gz ve dist/windows/Kayriva-Setup.exe
+Çıktılar: dist/linux/Kayriva-ARCH.AppImage, Linux .tar.gz ve dist/windows/Kayriva-Setup.exe
 Linux arşivi aynı uygulamayı içerir; sistem uyumluluğunu değiştirmez.
 Ayarlar ve indirilen modeller kullanıcı veri klasöründe korunur.
 Model ağırlıkları, sohbetler ve kurulu motorlar pakete kopyalanmaz.
@@ -116,21 +116,22 @@ build_linux() {
         --distpath "$kayriva_root/build/linux/helpers" \
         "$kayriva_root/build/entries/KayrivaBridge.py" 2>&1 | tee "$kayriva_root/build/linux/bridge.log"
     "$kayriva_python" -m PyInstaller "${common[@]}" --name Kayriva --windowed \
-        --distpath "$kayriva_root/dist/linux" \
+        --distpath "$kayriva_root/build/linux/payload" \
         --add-data "$kayriva_root/src/ai_studio/ui/assets:ai_studio/ui/assets" \
         --add-data "$kayriva_root/models/catalog.json:models" \
         --add-data "$kayriva_root/engine/releases.json:engine" \
         --add-data "$kayriva_root/extensions/catalog.json:extensions" \
+        --add-data "$kayriva_root/extensions/skills:extensions/skills" \
         --add-binary "$kayriva_root/build/linux/helpers/KayrivaBridge:helpers" \
         "$kayriva_root/build/entries/Kayriva.py" 2>&1 | tee "$kayriva_root/build/linux/build.log"
-    record_build linux "$kayriva_root/dist/linux/Kayriva" "$(uname -m)"
+    "$kayriva_python" "$kayriva_root/scripts/build_appimage.py" --root "$kayriva_root"
     if [[ "${KAYRIVA_SKIP_FILE_ICON:-0}" != 1 ]]; then
         if ! PYTHONPATH="$kayriva_root/src" "$kayriva_python" -c 'from ai_studio.desktop import install_file_icon; raise SystemExit(0 if install_file_icon() else 1)'; then
             printf 'Dosya ikonu bu ortamda kaydedilemedi; uygulama ilk açılışta yeniden deneyecek.\n' >&2
         fi
     fi
     archive_linux
-    printf '\nLinux tek dosyalı uygulama hazır: %s/dist/linux/Kayriva\n' "$kayriva_root"
+    printf '\nLinux tek dosyalı uygulama hazır: %s/dist/linux/Kayriva-%s.AppImage\n' "$kayriva_root" "$(uname -m)"
 }
 
 archive_linux() {
@@ -278,6 +279,7 @@ build_windows() {
         --add-data "$(windows_path "$kayriva_root/models/catalog.json");models" \
         --add-data "$(windows_path "$kayriva_root/engine/releases.json");engine" \
         --add-data "$(windows_path "$kayriva_root/extensions/catalog.json");extensions" \
+        --add-data "$(windows_path "$kayriva_root/extensions/skills");extensions/skills" \
         "$(windows_path "$kayriva_root/build/entries/Kayriva.py")" 2>&1 | tee "$kayriva_root/build/windows/build.log"
     wine_env "$kayriva_windows_python" -m PyInstaller "${common[@]}" --name KayrivaBridge --console \
         "$(windows_path "$kayriva_root/build/entries/KayrivaBridge.py")" 2>&1 | tee "$kayriva_root/build/windows/bridge.log"
@@ -316,9 +318,9 @@ PY
     archive_linux
     PYTHONPATH="$kayriva_root/src${PYTHONPATH:+:$PYTHONPATH}" "$kayriva_python" -m ai_studio.updater manifest \
         --version "$version" --output "$kayriva_root/dist/update-manifest.json" \
-        --artifact "linux:$linux_arch:portable=$kayriva_root/dist/linux/Kayriva" \
+        --artifact "linux:$linux_arch:portable=$kayriva_root/dist/linux/Kayriva-$linux_arch.AppImage" \
         --artifact "windows:x86_64:installer=$kayriva_root/dist/windows/Kayriva-Setup.exe" "$@"
-    (cd -- "$kayriva_root" && sha256sum dist/linux/Kayriva dist/windows/Kayriva-Setup.exe "dist/linux/Kayriva-$version-linux-$linux_arch.tar.gz" > dist/SHA256SUMS)
+    (cd -- "$kayriva_root" && sha256sum "dist/linux/Kayriva-$linux_arch.AppImage" dist/windows/Kayriva-Setup.exe "dist/linux/Kayriva-$version-linux-$linux_arch.tar.gz" > dist/SHA256SUMS)
     printf '\nYayın dosyaları hazır: dist/update-manifest.json ve platform paketleri.\n'
 }
 
@@ -328,7 +330,7 @@ clean_outputs() {
 }
 
 run_package() {
-    local executable="$kayriva_root/dist/linux/Kayriva"
+    local executable="$kayriva_root/dist/linux/Kayriva-$(uname -m).AppImage"
     [[ -x "$executable" ]] || { printf 'Önce ./kayriva.sh build ile derle.\n' >&2; return 1; }
     AI_STUDIO_ROOT="$kayriva_root" "$executable" "$@"
 }
@@ -346,7 +348,7 @@ show_status() {
     "$kayriva_python" --version
     command -v wine >/dev/null && wine --version || true
     local file
-    for file in dist/linux/Kayriva dist/windows/Kayriva-Setup.exe; do
+    for file in dist/linux/Kayriva-$(uname -m).AppImage dist/windows/Kayriva-Setup.exe; do
         if [[ -f "$kayriva_root/$file" ]]; then printf 'Hazır: %s\n' "$file"; else printf 'Henüz derlenmedi: %s\n' "$file"; fi
     done
 }
@@ -376,7 +378,7 @@ if [[ $# -gt 0 ]]; then
     dispatch "$@"
 elif [[ -t 0 ]]; then
     while true; do
-        printf '\nKayriva\n  1) Başlat\n  2) Linux bağımlılıklarını kur\n  3) Linux tek dosya derle\n  4) Derlenmiş uygulamayı aç\n  5) Windows ortamını kur (Wine)\n  6) Windows Setup.exe derle (Wine)\n  7) Testleri çalıştır\n  8) Durum\n  9) Windows paketini aç (Wine)\n  10) Derleme çıktılarını temizle\n  11) Güncelleme yayın dosyalarını hazırla\n  12) Linux .tar.gz arşivi üret\n  0) Çıkış\n'
+        printf '\nKayriva\n  1) Başlat\n  2) Linux bağımlılıklarını kur\n  3) Linux AppImage derle\n  4) Derlenmiş uygulamayı aç\n  5) Windows ortamını kur (Wine)\n  6) Windows Setup.exe derle (Wine)\n  7) Testleri çalıştır\n  8) Durum\n  9) Windows paketini aç (Wine)\n  10) Derleme çıktılarını temizle\n  11) Güncelleme yayın dosyalarını hazırla\n  12) Linux .tar.gz arşivi üret\n  0) Çıkış\n'
         read -r -p 'Seçim: ' kayriva_choice || break
         case "$kayriva_choice" in
             1) dispatch start ;; 2) dispatch setup ;; 3) dispatch build ;; 4) dispatch run ;;

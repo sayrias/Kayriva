@@ -153,7 +153,8 @@ def prepare_attachment(path, runtime, cancel=None) -> dict:
     size = reader.size()
     if not size.isValid() or size.width() * size.height() > 50_000_000:
         raise ValueError('Görsel boyutu okunamadı veya 50 megapiksel sınırını aşıyor.')
-    reader.setScaledSize(size.scaled(QSize(1600, 1600), Qt.AspectRatioMode.KeepAspectRatio))
+    if max(size.width(),size.height()) > 1600:
+        reader.setScaledSize(size.scaled(QSize(1600, 1600), Qt.AspectRatioMode.KeepAspectRatio))
     image = reader.read()
     _check_cancel(cancel)
     if image.isNull():

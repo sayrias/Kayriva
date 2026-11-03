@@ -20,11 +20,11 @@ class DesktopIntegrationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             data = root / 'desktop data'
-            shutil.copy2(sys.executable, root / 'Kayriva')
+            shutil.copy2(sys.executable, root / 'Kayriva-x86_64.AppImage')
             shutil.copy2(sys.executable, root / 'OtherProgram')
-            original = (root / 'Kayriva').read_bytes()
+            original = (root / 'Kayriva-x86_64.AppImage').read_bytes()
             self.assertTrue(install_file_icon(data))
-            self.assertEqual((root / 'Kayriva').read_bytes(), original)
+            self.assertEqual((root / 'Kayriva-x86_64.AppImage').read_bytes(), original)
             self.assertFalse((data / 'applications').exists())
             script = '''
 import sys
@@ -46,7 +46,7 @@ assert not QIcon.fromTheme(mime.iconName()).isNull()
 other=db.mimeTypeForFile(sys.argv[2])
 assert other.name()!='application/x-kayriva-executable',other.name()
 '''
-            result = subprocess.run([sys.executable, '-c', script, str(root / 'Kayriva'), str(root / 'OtherProgram')],
+            result = subprocess.run([sys.executable, '-c', script, str(root / 'Kayriva-x86_64.AppImage'), str(root / 'OtherProgram')],
                 env={**os.environ, 'XDG_DATA_HOME': str(data), 'QT_QPA_PLATFORM': 'offscreen'}, capture_output=True, text=True)
             self.assertEqual(result.returncode, 0, result.stderr)
             with patch('ai_studio.desktop.subprocess.run') as rebuild:

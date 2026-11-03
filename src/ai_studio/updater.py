@@ -6,6 +6,8 @@ No repository credentials, chat contents or local file paths are sent.
 """
 from __future__ import annotations
 
+from .executable import installed_executable
+
 import argparse
 from contextlib import nullcontext
 from dataclasses import dataclass
@@ -505,7 +507,7 @@ def launch_update(release, staged_path, *, current_executable=None):
         raise UpdateError('Source installations must be updated through the source repository.')
     if (release.asset.platform, release.asset.arch) != host_target():
         raise UpdateError('This update was built for a different platform or architecture.')
-    staged, executable = Path(staged_path).resolve(), Path(current_executable or sys.executable).resolve()
+    staged, executable = Path(staged_path).resolve(), Path(current_executable or installed_executable()).resolve()
     if not staged.is_file() or staged.stat().st_size != release.asset.size or file_sha256(staged) != release.asset.sha256:
         raise UpdateError('The staged update is missing or has changed; download it again.')
     if not executable.is_file() or not os.access(executable.parent, os.W_OK):

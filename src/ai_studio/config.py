@@ -39,6 +39,8 @@ class Settings:
     research_pages: int = 60
     offline: bool = False
     mcp_servers: list[dict] = field(default_factory=list)
+    skill_sources: list[dict] = field(default_factory=list)
+    skill_enabled: dict[str, bool] = field(default_factory=dict)
     transformer_dtype: str = "auto"
     hardware_ram_gb: int = 0
     hardware_vram_gb: int = 0
@@ -73,6 +75,13 @@ class Config:
         self.settings.threads = max(1, min(self.settings.threads, cpu_limit()))
         if self.settings.language not in {"en", "tr"}:
             self.settings.language = "en"
+        if not isinstance(self.settings.skill_sources, list):
+            self.settings.skill_sources = []
+        self.settings.skill_sources = [item for item in self.settings.skill_sources[:64] if isinstance(item, dict)]
+        if not isinstance(self.settings.skill_enabled, dict):
+            self.settings.skill_enabled = {}
+        self.settings.skill_enabled = {str(key):value for key,value in self.settings.skill_enabled.items()
+                                       if isinstance(value, bool) and len(str(key)) <= 100}
         if not self.settings.team_profiles:
             self.settings.team_profiles = [{"id": "default", "name": self.settings.team_name,
                 "role": self.settings.team_role, "instructions": self.settings.team_instructions,

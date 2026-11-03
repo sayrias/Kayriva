@@ -1,6 +1,24 @@
 from pathlib import Path
 
 STYLE = """
+QWidget#chatContext { background: transparent; }
+QComboBox#chatProject { background: transparent; border: 1px solid transparent; padding: 4px 24px 4px 2px; font-size: 12px; }
+QComboBox#chatProject:hover, QComboBox#chatProject:focus { border-color: #686475; background: #242832; }
+QFrame#modelVariantRow { background: #24272f; border: 1px solid #3a414d; border-radius: 10px; }
+QFrame#modelVariantRow:hover { border-color: #656379; background: #272c35; }
+QLabel#modelVariantName { font-size: 13px; font-weight: 600; }
+QLabel#modelVariantMeta { font-size: 12px; color: #bac0cd; }
+
+QPushButton#attachmentImage { padding: 2px; border: 1px solid #444b59; background: #20242b; border-radius: 7px; }
+QPushButton#attachmentImage:hover { border-color: #c9bcec; background: #303441; }
+QDialog#imagePreview QScrollArea { background: #14161b; border: 1px solid #3c4350; border-radius: 8px; }
+QLabel#activityNarrative { color: #d9dbe3; font-size: 14px; padding: 6px 0 10px; }
+QWidget#activityGroup, QWidget#activityOperation { background: transparent; }
+QPushButton#activityGroupToggle { background: transparent; color: #b8bbc8; text-align: left; border: none; padding: 5px 2px; font-size: 12px; }
+QPushButton#activityGroupToggle:hover, QPushButton#activityGroupToggle:focus { color: #f0e9ff; background: #262b35; }
+QPushButton#activityGroupArrow { background: transparent; border: none; padding: 5px; }
+QScrollArea#activityGroupDetails, QScrollArea#activityGroupDetails QWidget { background: transparent; border: none; }
+
 QLineEdit#chatSearch { background: #1d2027; border: 1px solid #303541; border-radius: 9px; font-size: 12px; padding: 6px 8px; }
 QLineEdit#chatSearch:focus { border-color: #a491c7; background: #242832; }
 QListWidget#promptList, QListWidget#promptList QWidget { background: #20232a; }
@@ -24,11 +42,11 @@ QWidget#messageActions { background: transparent; }
 QPushButton#activitySummary { background: transparent; color: #a39aa9; border: none; border-radius: 6px; padding: 3px 6px; font-size: 12px; text-align: left; }
 QPushButton#activitySummary:hover { color: #ded3eb; background: #262a33; }
 QFrame#activityDivider, QFrame#menuDivider { background: #383e49; border: none; }
-QScrollArea#activityDetails { background: #20232a; border: 1px solid #35323b; border-radius: 10px; }
+QFrame#activityDetails { background: transparent; border: none; }
 QWidget#activityTimeline, QWidget#activityStep { background: transparent; }
-QLabel#activityTime { color: #827a8c; font-size: 11px; }
+QLabel#activityTime { color: #a4a8b6; font-size: 11px; }
 QLabel#activityStepTitle { color: #cbc3d3; font-size: 12px; }
-QLabel#activityStepHint { color: #8e8697; font-size: 11px; }
+QLabel#activityStepHint { color: #a4a8b6; font-size: 12px; }
 QPushButton#messageAction { background: transparent; border: none; border-radius: 7px; padding: 5px; }
 QPushButton#messageAction:hover, QPushButton#messageAction:focus { background: #302b36; }
 QPushButton#messageAction:pressed { background: #403647; }
@@ -39,6 +57,17 @@ QFrame#sidebar { background: #15171c; border: none; border-right: 1px solid #292
 QFrame#topbar { background: #1b1d23; border: none; }
 QFrame#welcome { border: none; background: transparent; }
 QFrame#card { background: #24272f; border: 1px solid #3b404b; border-radius: 16px; }
+QFrame#brandPopup { background: #242831; border: 1px solid #626375; border-radius: 10px; }
+QFrame#brandPopup QListWidget { background: transparent; }
+QFrame#brandPopup QListWidget::item { padding: 8px 10px; border-radius: 6px; }
+QFrame#brandPopup QListWidget::item:selected { background: #454053; }
+QPushButton#activityTool { background: transparent; border: none; padding: 2px 3px; font-size: 12px; color: #b9bfcd; text-align: left; }
+QPushButton#activityTool:hover { background: #292d36; color: #ececf1; }
+QTextBrowser#documentPreview { background: #20242c; border: 1px solid #424855; border-radius: 10px; padding: 20px; font-size: 14px; }
+QPlainTextEdit#activityPayload { font-size: 11px; background: #171a20; border: 1px solid #363c48; border-radius: 6px; padding: 8px; }
+QPushButton#resumeTask { background: #302f3d; border: 1px solid #665b78; color: #ded1f2; padding: 6px 12px; }
+QScrollArea#attachmentStrip, QScrollArea#attachmentStrip QWidget { background: transparent; border: none; }
+QFrame#attachmentTile { background: #20242d; border: 1px solid #48505f; border-radius: 9px; }
 QFrame#composer { background: #282b34; border: 1px solid #434956; border-radius: 20px; }
 QFrame#userMessage { background: #30333f; border: none; border-radius: 17px; }
 QFrame#assistantMessage { background: #1b1d23; border: none; }
@@ -87,7 +116,7 @@ QPushButton#sendButton:hover { background: #eee4fa; }
 QPushButton#sendButton:disabled { background: #504359; }
 QLineEdit, QPlainTextEdit, QTextEdit, QSpinBox, QDoubleSpinBox, QComboBox { background: #1c1f26; border: 1px solid #414754; border-radius: 8px; padding: 7px; selection-background-color: #5b4d72; selection-color: #f5efff; }
 QLineEdit:focus, QPlainTextEdit:focus, QComboBox:focus { border-color: #9780af; }
-QPlainTextEdit#input { background: #282b34; border: none; padding: 10px 4px; font-size: 15px; }
+QPlainTextEdit#input { background: #282b34; border: none; padding: 10px 4px; font-size: 13px; }
 QComboBox { combobox-popup: 0; padding-right: 34px; min-height: 18px; }
 QComboBox:hover { background: #252a34; border-color: #6d7183; }
 QComboBox:on { background: #2c303b; border-color: #b9a8d8; }

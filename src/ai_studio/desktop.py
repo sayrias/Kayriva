@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from .brand import APP_ID, APP_NAME
+from .executable import installed_executable
 from .distribution import _update_asset
 
 ICON_PATH = Path(__file__).parent / 'ui/assets/kayriva.svg'
@@ -76,7 +77,7 @@ def _exec_argument(value: str) -> str:
 
 def install_launcher(executable: Path | None = None, data_home: Path | None = None) -> Path:
     """Register a persistent icon and launcher, never the temporary bundle path."""
-    executable = Path(executable or sys.executable).resolve()
+    executable = Path(executable or installed_executable()).resolve()
     if not executable.is_file() or not os.access(executable, os.X_OK):
         raise ValueError('The launcher requires an executable application file')
     if '=' in str(executable):

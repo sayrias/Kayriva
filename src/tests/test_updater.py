@@ -110,7 +110,7 @@ class UpdaterTests(unittest.TestCase):
     def test_verified_download_reuses_cache_and_corrupt_transfer_never_replaces_stage(self):
         package = self.release()
         with self.client([package]) as client:
-            info = u.check_for_updates(self.source, client=client, target=('linux', 'x86_64'))
+            info = u.check_for_updates(self.source, '1.0.0-beta.1', client=client, target=('linux', 'x86_64'))
             progress = []
             path = u.download_update(info, self.root, lambda done, total: progress.append((done, total)), client=client)
             self.assertEqual(path.read_bytes(), package[3])
@@ -171,7 +171,7 @@ class UpdaterTests(unittest.TestCase):
                  'from_version': '1.0.0-beta.1', 'from_sha256': u.file_sha256(base), 'algorithm': 'kayriva-block-v1'}
         package = self.release(body=target, target=('windows', 'x86_64'), deltas=[delta])
         with self.client([package], lambda req: httpx.Response(200, content=patch_data)) as client:
-            info = u.check_for_updates(self.source, client=client, target=('windows', 'x86_64'))
+            info = u.check_for_updates(self.source, '1.0.0-beta.1', client=client, target=('windows', 'x86_64'))
             result = u.download_update(info, self.root, current_version='1.0.0-beta.1', client=client)
         self.assertEqual(result.read_bytes(), target)
         self.assertTrue(any(url.endswith('change.kdelta') for url in self.requests))
@@ -199,7 +199,7 @@ class UpdaterTests(unittest.TestCase):
         patch_bytes = patch_path.read_bytes()
         package = self.release(body=new.read_bytes(), deltas=[delta])
         with self.client([package], lambda req: httpx.Response(200, content=patch_bytes)) as client:
-            info = u.check_for_updates(self.source, client=client, target=('linux', 'x86_64'))
+            info = u.check_for_updates(self.source, '1.0.0-beta.1', client=client, target=('linux', 'x86_64'))
             result = u.download_update(info, self.root, base_path=base, current_version='1.0.0-beta.1', client=client)
         self.assertEqual(result.read_bytes(), new.read_bytes())
         self.assertNotIn(package[2] + 'Kayriva', self.requests)

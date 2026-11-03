@@ -14,6 +14,7 @@ from .localized import QWidget, QFrame, QCheckBox, QTextBrowser, QScrollArea, QP
 
 from .. import __version__
 from ..brand import APP_NAME
+from ..executable import installed_executable
 from ..i18n import tr
 from ..local_logging import failure
 from ..updater import UpdateSource, check_for_updates, download_update, launch_update, host_target
@@ -198,7 +199,7 @@ class AboutPage(QWidget):
         destination = self.window.config.runtime / 'updates'
         self._start(lambda worker: download_update(release, destination,
             progress=lambda done, total: worker.progress.emit(done, total), cancel=worker.cancel,
-            base_path=Path(sys.executable), current_version=__version__), self.downloaded)
+            base_path=installed_executable(), current_version=__version__), self.downloaded)
 
     def show_progress(self, done, total):
         self.progress.setRange(0, 100 if total else 0)

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kayriva-desktop"
-version = "1.0.0-beta.1"
+version = "1.0.0-beta.2"
 description = "Private native desktop workspace for local models and MCP tools"
 requires-python = ">=3.11"
 dependencies = ["PySide6>=6.8,<7", "httpx>=0.28,<1"]

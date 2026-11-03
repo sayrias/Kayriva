@@ -56,7 +56,7 @@ def glibc_requirements(executable: Path) -> dict:
                         helper.write_bytes(data)
                         inspect_archive(helper, prefix + name + '::')
 
-        inspect('Kayriva', executable)
+        inspect('Kayriva payload', executable)
         inspect_archive(executable)
     maximum = max(requirements.values(), key=lambda v: tuple(map(int, v.split('.'))))
     return {'libc': 'glibc', 'required_glibc': maximum, 'inspected_elf_files': elf_count,
@@ -69,28 +69,32 @@ def package(root: Path) -> Path:
     version = tomllib.loads((root / 'pyproject.toml').read_text())['project']['version']
     if not re.fullmatch(r'[0-9A-Za-z][0-9A-Za-z.+-]*', version):
         raise ValueError('Invalid package version')
-    binary = root / 'dist/linux/Kayriva'
-    info = json.loads((binary.parent / 'build-info.json').read_text())
-    if (info['version'] != version or info['platform'] != 'linux' or info['filename'] != 'Kayriva'
+    info = json.loads((root/'dist/linux/build-info.json').read_text())
+    architecture = info['architecture']
+    filename = f'Kayriva-{architecture}.AppImage'
+    binary = root/'dist/linux'/filename
+    if (info['version'] != version or info['platform'] != 'linux' or info['filename'] != filename
             or binary.stat().st_size != info['size'] or digest(binary) != info['sha256']):
         raise ValueError('Linux build is stale or modified; run ./kayriva.sh build first')
     with binary.open('rb') as stream:
         header = stream.read(20)
-    if header[:6] != b'\x7fELF\x02\x01':
-        raise ValueError('Expected a 64-bit little-endian ELF executable')
-    architecture = {62: 'x86_64', 183: 'aarch64'}.get(int.from_bytes(header[18:20], 'little'))
-    if architecture is None or architecture != info['architecture']:
-        raise ValueError('Executable architecture does not match the build metadata')
-    compatibility = {'version': version, 'platform': 'linux', 'architecture': architecture,
-                     'binary_sha256': info['sha256'], **glibc_requirements(binary)}
+    if header[:6] != b'\x7fELF\x02\x01' or header[8:11] != b'AI\x02':
+        raise ValueError('Expected a genuine Type 2 AppImage')
+    if {62:'x86_64',183:'aarch64'}.get(int.from_bytes(header[18:20],'little')) != architecture:
+        raise ValueError('AppImage architecture does not match the build metadata')
+    payload = root/'build/linux/payload/Kayriva'
+    if digest(payload) != info['payload_sha256']:
+        raise ValueError('AppImage payload changed; rebuild before packaging')
+    compatibility = {'version':version,'platform':'linux','architecture':architecture,
+                     'binary_sha256':info['sha256'], **glibc_requirements(payload)}
     name = f'Kayriva-{version}-linux-{architecture}'
     readme = f'''Kayriva {version} — Linux {architecture}
 
 Extract this archive, open its folder and run:
-  ./Kayriva
+  ./{filename}
 
 If necessary, restore executable permission:
-  chmod +x Kayriva
+  chmod +x {filename}
 
 Requirements for this build:
   - {architecture}, 64-bit GNU/Linux
@@ -103,8 +107,9 @@ This is not a musl/Alpine, ARM32 or universal Linux build. A different architect
 requires its own build. Compressing the application does not change compatibility.
 
 The first launch registers the application menu entry and the Kayriva file icon.
-To register without opening a window: ./Kayriva --install-desktop
-Keep the executable's Kayriva filename for the dedicated file icon.
+If FUSE mounting is unavailable: ./{filename} --appimage-extract-and-run
+To register without opening a window: ./{filename} --install-desktop
+Keep the AppImage filename for the dedicated file icon.
 
 Models and inference runtimes are separate downloads. Conversations, settings
 and downloaded models are stored in the user's Kayriva data directory, outside
@@ -120,7 +125,7 @@ requirements. Source-code license: not yet selected; third-party licenses apply.
         '.directory': b'[Desktop Entry]\nType=Directory\nName=Kayriva\nIcon=./kayriva.svg\n',
         'licenses/NotoSans-LICENSE.txt': (root / 'src/ai_studio/ui/assets/NotoSans-LICENSE.txt').read_bytes(),
     }
-    checksums = [f'{info["sha256"]}  Kayriva']
+    checksums = [f'{info["sha256"]}  {filename}']
     checksums += [f'{hashlib.sha256(data).hexdigest()}  {path}' for path, data in sorted(files.items())]
     files['SHA256SUMS'] = ('\n'.join(checksums) + '\n').encode()
     output = binary.parent / f'{name}.tar.gz'
@@ -128,11 +133,11 @@ requirements. Source-code license: not yet selected; third-party licenses apply.
         temporary = Path(directory) / 'package.tar.gz'
         with temporary.open('wb') as stream, gzip.GzipFile(filename='', fileobj=stream, mode='wb', mtime=0) as compressed:
             with tarfile.open(fileobj=compressed, mode='w') as archive:
-                for path in ['Kayriva', *sorted(files)]:
+                for path in [filename, *sorted(files)]:
                     member = tarfile.TarInfo(f'{name}/{path}')
-                    member.mode = 0o755 if path == 'Kayriva' else 0o644
-                    member.size = binary.stat().st_size if path == 'Kayriva' else len(files[path])
-                    if path == 'Kayriva':
+                    member.mode = 0o755 if path == filename else 0o644
+                    member.size = binary.stat().st_size if path == filename else len(files[path])
+                    if path == filename:
                         with binary.open('rb') as app:
                             archive.addfile(member, app)
                     else:

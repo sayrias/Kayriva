@@ -19,6 +19,9 @@ from pathlib import Path
 
 from .integrations import validate_spec
 
+_INSTALL_LOCKS = {}
+_INSTALL_LOCKS_GUARD = threading.Lock()
+
 
 def load_catalog(root: Path) -> list[dict]:
     candidates = [Path(root) / "extensions/catalog.json",
@@ -30,9 +33,15 @@ def load_catalog(root: Path) -> list[dict]:
     entries = data.get("entries", [])
     if data.get("schema") != 1 or not isinstance(entries, list):
         raise ValueError("Eklenti kütüphanesinin biçimi desteklenmiyor")
+    seen = set()
     for entry in entries:
+        if not isinstance(entry, dict):
+            raise ValueError('Eklenti kaydı bir nesne olmalı')
         if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,63}", entry.get("id", "")):
             raise ValueError("Geçersiz eklenti kimliği")
+        if entry['id'] in seen:
+            raise ValueError('Eklenti kimlikleri benzersiz olmalı')
+        seen.add(entry['id'])
         if entry.get("kind") not in {"npm", "python", "http"}:
             raise ValueError("Desteklenmeyen eklenti kurulum türü")
         if not entry.get("source", "").startswith("https://"):
@@ -40,6 +49,8 @@ def load_catalog(root: Path) -> list[dict]:
         if not isinstance(entry.get('required_env', []), list) or not all(isinstance(key, str) and re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*', key) for key in entry.get('required_env', [])):
             raise ValueError('Geçersiz ortam değişkeni adı')
         if entry["kind"] != "http":
+            if entry.get('bin') and not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]*', entry['bin']):
+                raise ValueError('Eklenti giriş adı geçersiz')
             pattern = r"(?:@[a-z0-9_.-]+/)?[a-z0-9][a-z0-9_.-]*" if entry["kind"] == "npm" else r"[A-Za-z0-9][A-Za-z0-9_.-]*"
             if not re.fullmatch(pattern, entry.get("package", "")):
                 raise ValueError("Paket adı kayıt deposundan yüklenebilir bir ad olmalı")
@@ -49,6 +60,8 @@ def load_catalog(root: Path) -> list[dict]:
                 raise ValueError("Eklenti argümanları bir metin dizisi olmalı")
             if not isinstance(entry.get("env", {}), dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in entry.get("env", {}).items()):
                 raise ValueError("Eklenti ortam değerleri metin olmalı")
+        else:
+            validate_spec({'name': entry.get('name', entry['id']), 'url': entry.get('url'), 'header_env': entry.get('header_env', {})})
     return entries
 
 
@@ -61,6 +74,8 @@ def external_python() -> str | None:
 
 
 def requirement(entry: dict) -> str:
+    if entry.get('requirement'):
+        return entry['requirement']
     kind = entry["kind"]
     missing = [name for name in entry.get('required_env', []) if not os.environ.get(name)]
     if missing:
@@ -71,6 +86,21 @@ def requirement(entry: dict) -> str:
         return "Hazır · Python" if external_python() else "Python 3.11+ gerekli"
     missing = [name for name in entry.get("header_env", {}).values() if not os.environ.get(name)]
     return "Ortam değişkeni gerekli: " + ", ".join(missing) if missing else "Hazır · uzak bağlantı"
+
+
+def authentication_issue(entry: dict) -> str:
+    """Check configured references only; this is not a remote login test."""
+    variables = [*entry.get('required_env', []), *entry.get('header_env', {}).values()]
+    missing = [name for name in variables if not os.environ.get(name)]
+    if missing:
+        return 'Ortam değişkeni gerekli: ' + ', '.join(dict.fromkeys(missing))
+    variable = entry.get('header_env', {}).get('Authorization')
+    if variable:
+        prefix = entry.get('auth_prefix', 'Bearer') + ' '
+        value = os.environ.get(variable, '')
+        if not value.startswith(prefix) or not value[len(prefix):].strip():
+            return variable + ' değeri ' + prefix.strip() + ' önekiyle tanımlanmalı.'
+    return ''
 
 
 def _npm_command(node: str, npm: str) -> list[str]:
@@ -118,7 +148,8 @@ class ExtensionLibrary:
         self.root = Path(root).resolve()
         self.entries = load_catalog(self.root)
         self.base = self.root / "runtime/extensions"
-        self.lock = threading.Lock()
+        with _INSTALL_LOCKS_GUARD:
+            self.lock = _INSTALL_LOCKS.setdefault(str(self.base), threading.Lock())
 
     def find(self, ident: str) -> dict:
         try:
@@ -128,6 +159,8 @@ class ExtensionLibrary:
 
     def install(self, ident: str, workspace="", *, cancel=None, status=lambda _: None) -> dict:
         entry = self.find(ident)
+        if not self.base.resolve().is_relative_to(self.root) or self.base.is_symlink():
+            raise ValueError('Eklenti kurulum klasörü proje verilerinin içinde olmalı')
         # Validate the whole catalog even for direct service callers.
         directory = (self.base / entry["id"]).resolve()
         if not directory.is_relative_to(self.base.resolve()):
@@ -164,7 +197,8 @@ class ExtensionLibrary:
                 package_root = directory / "node_modules" / entry["package"]
                 meta = json.loads((package_root / "package.json").read_text(encoding="utf-8"))
                 bins = meta.get("bin", {})
-                binary = bins if isinstance(bins, str) else next(iter(bins.values()), "")
+                wanted_bin = entry.get('bin') or entry['package'].split('/')[-1]
+                binary = bins if isinstance(bins, str) else bins.get(wanted_bin, next(iter(bins.values()), '') if len(bins) == 1 else '') if isinstance(bins, dict) else ''
                 if not isinstance(binary, str) or not binary:
                     raise RuntimeError("Paket çalıştırılabilir MCP girişi sunmuyor")
                 script = (package_root / binary).resolve()

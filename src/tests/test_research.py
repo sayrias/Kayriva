@@ -79,3 +79,41 @@ class ResearchTests(unittest.TestCase):
                 with self.assertRaises(InterruptedError):research.run('Guide','deep',cancel)
             self.assertLess(time.monotonic()-started,.7)
         finally:release.set();timer.cancel()
+
+    def test_provider_failure_opens_circuit_before_all_queries_are_scheduled(self):
+        research=Research(Settings());queries=[]
+        def denied(query,count):
+            queries.append(query)
+            raise RuntimeError('provider bot challenge')
+        with patch.object(research,'search',side_effect=denied),patch.object(research,'read_page') as read:
+            with self.assertRaisesRegex(RuntimeError,'provider bot challenge'):
+                research.run('Guide','deep',threading.Event())
+        self.assertLessEqual(len(queries),5)
+        read.assert_not_called()
+
+    def test_phase_budget_stops_blocked_requests_and_keeps_completed_sources(self):
+        research=Research(Settings());release=threading.Event()
+        def action(value):
+            if value==0:return 'fast'
+            release.wait(2)
+            return 'late'
+        started=time.monotonic();results=[]
+        try:
+            with self.assertRaises(TimeoutError):
+                for future,value in research.parallel(action,range(8),threading.Event(),timeout=.15):
+                    results.append(future.result())
+            self.assertLess(time.monotonic()-started,.7)
+            self.assertEqual(results,['fast'])
+        finally:release.set()
+
+    def test_completed_search_is_checkpointed_before_page_read_cancel(self):
+        research=Research(Settings());cancel=threading.Event();saved=[]
+        research.on_sources=lambda sources:saved.append([dict(source) for source in sources])
+        def page(url,event):
+            cancel.set()
+            raise InterruptedError('Stopped')
+        with patch.object(research,'search',return_value=[Source('Guide','https://example.org','Summary')]),patch.object(research,'read_page',side_effect=page):
+            with self.assertRaises(InterruptedError):
+                research.run('Guide','detailed',cancel)
+        self.assertTrue(saved)
+        self.assertEqual(saved[0][0]['url'],'https://example.org')

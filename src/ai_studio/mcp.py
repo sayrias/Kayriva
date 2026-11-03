@@ -13,6 +13,7 @@ from urllib.parse import urlparse
 import httpx
 
 from .engine.local import sse_events
+from . import __version__
 
 
 class MCPClient:
@@ -22,9 +23,12 @@ class MCPClient:
     roots, OAuth, or the legacy HTTP+SSE transport.
     """
 
-    def __init__(self, spec, offline=False):
+    def __init__(self, spec, offline=False, *, cancel=None, timeout=90):
         self.spec = spec
         self.offline = offline
+        self.cancel = cancel if cancel is not None else threading.Event()
+        self.timeout = max(.1, min(90, float(timeout)))
+        self.aborted = False
         self.process = None
         self.http = None
         self.session = None
@@ -34,8 +38,14 @@ class MCPClient:
         self.protocol = "2025-03-26"
         self._lock = threading.RLock()
 
+    def check_cancelled(self):
+        if self.cancel.is_set():
+            self.aborted = True
+            raise InterruptedError("MCP işlemi durduruldu")
+
     def open(self):
         try:
+            self.check_cancelled()
             if self.spec.get("transport", "stdio") == "stdio":
                 command = self.spec["command"]
                 env = os.environ.copy()
@@ -57,9 +67,9 @@ class MCPClient:
                     if not os.environ.get(variable):
                         raise ValueError(f"MCP için {variable} ortam değişkeni gerekli")
                     headers[header] = os.environ[variable]
-                self.http = httpx.Client(trust_env=False, timeout=httpx.Timeout(90, connect=10), headers=headers)
+                self.http = httpx.Client(trust_env=False, timeout=httpx.Timeout(self.timeout, connect=min(10,self.timeout)), headers=headers)
             result = self.request("initialize", {"protocolVersion": self.protocol, "capabilities": {},
-                "clientInfo": {"name": "ai-studio", "version": "0.1.0"}})
+                "clientInfo": {"name": "Kayriva", "version": __version__}})
             self.protocol = result["protocolVersion"]
             self.notify("notifications/initialized")
             return self
@@ -97,6 +107,7 @@ class MCPClient:
                 response.read()
                 events = iter([response.json()])
             for value in events:
+                self.check_cancelled()
                 for item in value if isinstance(value, list) else [value]:
                     if item.get("id") == expected and "method" not in item:
                         return item
@@ -110,7 +121,24 @@ class MCPClient:
             self.process.stdin.write(json.dumps(message, ensure_ascii=False) + "\n")
             self.process.stdin.flush()
         else:
-            return self._post(message, message.get("id"))
+            # Poll a daemon request so a silent HTTP/SSE server cannot keep the
+            # caller waiting after cancellation. Socket timeouts still bound it.
+            replies = queue.Queue(maxsize=1)
+            def post():
+                try:replies.put((True,self._post(message,message.get("id"))))
+                except Exception as exc:replies.put((False,exc))
+            threading.Thread(target=post,daemon=True,name='mcp-http').start()
+            deadline=time.monotonic()+self.timeout
+            while True:
+                self.check_cancelled()
+                remaining=deadline-time.monotonic()
+                if remaining<=0:
+                    self.aborted=True
+                    raise TimeoutError("MCP yanıt süresi aşıldı")
+                try:ok,value=replies.get(timeout=min(.1,remaining))
+                except queue.Empty:continue
+                if not ok:raise value
+                return value
 
     def notify(self, method, params=None):
         message = {"jsonrpc": "2.0", "method": method}
@@ -126,17 +154,19 @@ class MCPClient:
 
     def request(self, method, params=None):
         with self._lock:
+            self.check_cancelled()
             self.seq += 1
             ident = self.seq
             message = {"jsonrpc": "2.0", "id": ident, "method": method, "params": params or {}}
             result = self._send(message)
             if self.process:
-                deadline = time.monotonic() + 90
+                deadline = time.monotonic() + self.timeout
                 while time.monotonic() < deadline:
+                    self.check_cancelled()
                     try:
-                        item = self.incoming.get(timeout=max(0.01, deadline - time.monotonic()))
+                        item = self.incoming.get(timeout=min(.1, max(0.01, deadline - time.monotonic())))
                     except queue.Empty:
-                        break
+                        continue
                     if item is None:
                         raise RuntimeError("MCP sunucusu kapandı: " + "\n".join(self.logs)[-1000:])
                     if "method" in item:
@@ -182,7 +212,7 @@ class MCPClient:
                     stream.close()
             self.process = None
         if self.http:
-            if self.session:
+            if self.session and not self.cancel.is_set() and not self.aborted:
                 try:
                     self.http.delete(self.spec["url"], headers={"Mcp-Session-Id": self.session,
                                                               "MCP-Protocol-Version": self.protocol}, timeout=3)

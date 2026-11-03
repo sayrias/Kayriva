@@ -9,7 +9,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from ai_studio.extension_library import ExtensionLibrary, load_catalog
+from ai_studio.extension_library import ExtensionLibrary, load_catalog, authentication_issue
 from ai_studio.github_service import GitHubService, github_url, repository_name
 from ai_studio.integrations import export_configuration, import_configuration
 
@@ -20,11 +20,24 @@ ROOT = Path(__file__).resolve().parents[2]
 class IntegrationTests(unittest.TestCase):
     def test_catalog_sources_and_installers_are_explicit(self):
         entries = load_catalog(ROOT)
-        self.assertGreaterEqual(len(entries), 17)
+        self.assertGreaterEqual(len(entries), 43)
         self.assertEqual(len({entry['id'] for entry in entries}), len(entries))
         for entry in entries:
-            self.assertIn(urlparse(entry['source']).hostname, {'github.com', 'docs.devin.ai', 'learn.microsoft.com', 'developers.cloudflare.com', 'huggingface.co'})
+            self.assertIn(urlparse(entry['source']).hostname, {'github.com', 'docs.devin.ai', 'learn.microsoft.com', 'developers.cloudflare.com', 'huggingface.co', 'svelte.dev', 'docs.astro.build', 'awslabs.github.io', 'linear.app', 'neon.com', 'supabase.com', 'docs.stripe.com', 'angular.dev', 'ui.shadcn.com', 'ui.nuxt.com', 'developers.figma.com', 'developer.paypal.com'})
             self.assertTrue(entry['permissions'])
+
+    def test_direct_sentry_token_requires_its_documented_distinct_prefix(self):
+        entry = ExtensionLibrary(ROOT).find('sentry')
+        with patch.dict('os.environ', {'KAYRIVA_SENTRY_AUTHORIZATION':'Bearer ordinary-token'}):
+            self.assertTrue(authentication_issue(entry))
+        with patch.dict('os.environ', {'KAYRIVA_SENTRY_AUTHORIZATION':'Sentry-Bearer direct-upstream-token'}):
+            self.assertEqual(authentication_issue(entry), '')
+
+    def test_database_starter_entries_are_read_only(self):
+        library = ExtensionLibrary(ROOT)
+        self.assertIn('read_only=true', library.find('supabase')['url'])
+        self.assertIn('--readOnly', library.find('mongodb')['args'])
+        self.assertEqual(library.find('qdrant')['env']['QDRANT_READ_ONLY'], 'true')
 
     def test_import_preserves_argv_without_running_and_disables_servers(self):
         with patch('subprocess.Popen') as popen:
@@ -96,6 +109,32 @@ class IntegrationTests(unittest.TestCase):
             self.assertTrue(Path(spec['args'][0]).is_file())
             self.assertEqual(spec['installed_version'], '2.0.1')
             self.assertTrue(spec['env']['MEMORY_FILE_PATH'].startswith(str(root)))
+
+    def test_named_npm_entry_is_selected_from_packages_with_multiple_commands(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            (root / 'extensions').mkdir()
+            (root / 'extensions/catalog.json').write_text((ROOT / 'extensions/catalog.json').read_text())
+            library = ExtensionLibrary(root)
+            package = root / 'runtime/extensions/chrome-devtools/node_modules/chrome-devtools-mcp'
+            def execute(argv, **kwargs):
+                package.mkdir(parents=True)
+                (package / 'server.js').write_text('')
+                (package / 'package.json').write_text(json.dumps({'version':'1.0', 'bin': {'other-command':'not-the-mcp.js', 'chrome-devtools-mcp':'server.js'}}))
+            with patch('ai_studio.extension_library.shutil.which', side_effect=lambda name: '/usr/bin/' + name), patch('ai_studio.extension_library._execute', side_effect=execute):
+                spec = library.install('chrome-devtools')
+            self.assertTrue(spec['args'][0].endswith('server.js'))
+            self.assertIn('--isolated', spec['args'])
+            self.assertEqual(spec['env']['CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS'], '1')
+
+    def test_install_lock_is_shared_between_library_windows(self):
+        first, second = ExtensionLibrary(ROOT), ExtensionLibrary(ROOT)
+        first.lock.acquire()
+        try:
+            with self.assertRaisesRegex(RuntimeError, 'Başka bir eklenti'):
+                second.install('github')
+        finally:
+            first.lock.release()
 
     def test_github_repository_and_url_option_injection_rejected(self):
         for name in ['--public', 'owner/repo; echo hello', 'x/../../outside', 'hello\n--public', '.', '..']:

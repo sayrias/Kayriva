@@ -101,4 +101,26 @@ Otomatik indirme, kurulum için otomatik kapanma anlamına gelmez. Görünür ye
 
 Çevrilecek arayüz metinleri kaynak anahtarlarına bağlıdır. Dil değişimi açık sohbeti, taslağı, özel talimatları, dosya içeriğini veya filtre kimliklerini yeniden oluşturmaz. Form satırları dar pencerede sarılır; alanlar yatay taşmaz. GPU katmanları Otomatik onayı, kaydırıcı ve sayı alanıyla ayarlanır; üst sınır seçili modelden okunur. Genel açılır listeler sınırlı yükseklikte kaydırılır.
 
-Eklenti listesi alfabetik gerçek adları gösterir: Filesystem, Playwright, MarkItDown ve diğer MCP adları çevrilmez. İkinci satır kısa alan etiketidir. Tümü / Yerel / Uzak / Eklenenler sekmeleri bağlantı kapsamını, alan seçimi kullanım alanını filtreler. Arama, yayıncı ve açıklamaları da kapsar. Sağ tarafta yayıncı, bağlantı türü, açıklama, erişim kapsamı ve gereksinimler bulunur. Ayrıntılar kaydırılabilir; kaynak ve kurulum eylemleri sabit alt sırada kalır. Boş arama sonuçları kurulum başlatamaz. Katalog 17 bağlantı içerir.
+Eklenti listesi alfabetik gerçek adları gösterir: Filesystem, Playwright, MarkItDown ve diğer MCP adları çevrilmez. İkinci satır kısa alan etiketidir. Tümü / Yerel / Uzak / Eklenenler sekmeleri bağlantı kapsamını, alan seçimi kullanım alanını filtreler. Arama, yayıncı ve açıklamaları da kapsar. Sağ tarafta yayıncı, bağlantı türü, açıklama, erişim kapsamı ve gereksinimler bulunur. Ayrıntılar kaydırılabilir; kaynak ve kurulum eylemleri sabit alt sırada kalır. Boş arama sonuçları kurulum başlatamaz. Katalog 35 bağlantı içerir.
+
+## 3 Kasım 2026 · Yazma alanı ve canlı işlem akışı
+
+Yazma alanı 13 px metinle içeriğe göre büyür; pencere yüksekliğinin yaklaşık %46’sında, en fazla 440 px’de kaydırmaya geçer. Panodan görsel ve yerel dosya ekleme, sürükleyip bırakma ve kaldırılabilir küçük önizlemeler aynı akıştadır. Geçmişteki kullanıcı mesajları eklerin bütün çıkarılmış metnini balona doldurmaz; asıl içerik model girdisinde korunur.
+
+İşlem ayrıntıları, sabit boylu ikinci bir kaydırma kutusu yerine sohbetin içinde doğal bir akış oluşturur. Çalışma boyunca açık kalır; gerçek araçların argüman ve sonuçları tek satırdan genişletilir. Bekleme bildirimleri aynı aşamada güncellenir. Durdurulan son yanıtın yanında Devam et eylemi bulunur.
+
+Marka seçicinin tetikleyicisi düzenlenemez; arama sınırlı yükseklikteki açılır listenin içindedir. Proje, model ve ek seçicileri masaüstü portalına bağlı kalmayan Qt dosya listesini kullanır; dosya adı alanı boş başlar. Yerel metin editörünün Önizleme eylemi Markdown’ı görüntüler; kaynak metni değiştirmez.
+
+## 3 Kasım 2026 · Beta 2
+
+Canlı akıştaki açıklamalar modelin kullanıcının isteğine verdiği gerçek ara mesajlardan gelir; sabit bir yaklaşım metni eklenmez. Gerçek araç olayları, doğal ara bilgilendirmeler arasında açılır işlem gruplarında toplanır. Grup → araç → sınırlı argüman/sonuç olmak üzere iki ayrıntı düzeyi bulunur; bütün fazlar sürekli uzun bir liste olarak açılmaz. Çalışan son aşama grubun altında görünür. Beceri/entegrasyon adı yalnız gerçek okuma/çağrı olayından gelir. Bu açıklamalar modelin özel düşünce zinciri değildir.
+
+Devam eyleminin görünürlüğü tüm konuşmanın son mesajına göre belirlenir; yeni bir kullanıcı mesajı veya tamamlanan yanıt önceki durdurulmuş yanıtın düğmesini gizler. Geçmiş yüklenirken aynı kural uygulanır.
+
+Görsel küçük resimleri hem taslakta hem geçmiş mesajında tıklanabilir. Açılan yerel görüntüleyici sığdırma, 1:1 ve sınırlandırılmış yakınlaştırma sunar. Küçük görseller hazırlama aşamasında büyütülmez. Kütüphanenin üç yönetim sekmesi MCP, Uygulamalar ve Beceriler'dir. Kurulum alt satırı ayırıcıdan 18 px iç boşlukla ayrılır; dar görünümde eylemler ayrı satırlardadır.
+
+## Model listesi ve proje bağlamı
+
+Model kitaplığının varsayılan görünümü tek tek varyantlardır. Aynı model ailesinin farklı kuantizasyonları ayrı, yaklaşık74px satırlarda görünür; isteğe bağlı Aileler görünümü gruplanmış kartları korur. Sayaç varyant ve aile sayılarını açıkça ayırır. Arama/durum/görünüm bir satırdadır, marka/amaç/boyut seçicileri Filtreler arkasındadır. 940×640 pencere testinde model alanı içerik yüksekliğinin %76’sını kullanır.
+
+Yazma alanının üstündeki bağlam satırı seçili projeyi, bu bilgisayarı ve proje dosyaları eylemini gösterir. Proje içinde yeni sohbet açıldığında proje korunur; Projesiz sohbet seçimi aynı taslağı koruyarak bağımsız sohbet açar. İşlem sürerken proje değiştirilemez.

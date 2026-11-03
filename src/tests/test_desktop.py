@@ -400,6 +400,7 @@ class DesktopTests(unittest.TestCase):
 
     def test_quantization_selector_downloads_its_selected_file(self):
         window = self.window
+        window.model_view.setCurrentIndex(window.model_view.findData('families'))
         panel = window.model_layout.itemAt(0).widget()
         combo = panel.findChild(QComboBox, 'quantPicker')
         self.assertGreater(combo.count(), 1)
@@ -723,7 +724,7 @@ class DesktopTests(unittest.TestCase):
         self.window.picker_search.setText('no-such-model');QTest.qWait(60)
         self.assertIn('Eşleşen',self.window.picker_items.itemAt(0).widget().text())
 
-    def test_activity_timeline_has_readable_explanations_and_full_width_divider(self):
+    def test_activity_groups_keep_actual_stages_behind_a_compact_summary(self):
         from ai_studio.ui.widgets import ActivityDetails
         from PySide6.QtWidgets import QLabel
         message=self.window.add_message('assistant','Merhaba!')
@@ -735,7 +736,12 @@ class DesktopTests(unittest.TestCase):
         self.assertIsInstance(message.activity_details,ActivityDetails)
         self.assertLess(message.activity_details.height(),155)
         texts=[l.text() for l in message.activity_details.findChildren(QLabel)]
-        self.assertIn('Modelin yanıt metnini üretmesi',texts)
+        self.assertIn('3 aşama',texts)
+        from PySide6.QtWidgets import QPushButton
+        group=message.activity_details.findChild(QPushButton,'activityGroupToggle')
+        self.assertFalse(group.isChecked());group.click();QTest.qWait(30)
+        labels=[l for l in message.activity_details.findChildren(QLabel) if l.isVisible()]
+        self.assertIn('Yanıt oluşturuluyor…',[l.text() for l in labels])
         self.assertGreater(message.activity_divider.width(),message.activity_button.width())
         self.assertEqual(message.copy_button.objectName(),'messageAction')
         message.copy();self.assertEqual(QApplication.clipboard().text(),'Merhaba!')

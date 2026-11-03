@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 import os
+import copy
+from pathlib import Path
 from ..i18n import tr
 
-from PySide6.QtCore import Qt, QUrl
+from PySide6.QtCore import Qt, QUrl, QSize
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QApplication, QFileDialog, QHBoxLayout, QVBoxLayout
@@ -12,12 +14,13 @@ from PySide6.QtWidgets import (
 from .localized import QWidget, QCheckBox, QLineEdit, QPlainTextEdit, QListWidget, QListWidgetItem, QFormLayout, QSplitter, QTabWidget, QComboBox
 
 
-from ..extension_library import ExtensionLibrary, requirement
+from ..extension_library import ExtensionLibrary, requirement, authentication_issue
 from ..github_service import GitHubService, github_url
 from ..integrations import export_configuration, import_configuration
 from .icons import icon
+from .file_dialogs import QFileDialog
 from .widgets import InlineDialog, button, label, ChoiceBox
-from .localized import QScrollArea, QFrame, FilterTabs
+from .localized import QScrollArea, QFrame, FilterTabs, QLabel, QProgressBar
 
 
 def _surfaces(window):
@@ -34,17 +37,30 @@ def _finish_dialog(dialog, panel):
         dialog.deleteLater()
 
 
+def _auth_message(entry):
+    issue = authentication_issue(entry)
+    prefix = 'Ortam değişkeni gerekli: '
+    if issue.startswith(prefix):
+        return tr(prefix) + issue[len(prefix):]
+    if issue:
+        return tr('{variable} değeri {prefix} önekiyle tanımlanmalı.',
+                  variable=entry.get('header_env', {}).get('Authorization', ''), prefix=entry.get('auth_prefix', 'Bearer'))
+    return ''
+
+
 class ExtensionBrowser(QWidget):
-    def __init__(self, window):
+    def __init__(self, window, apps_only=False):
         super().__init__()
         self.window = window
         self.library = ExtensionLibrary(window.config.root)
+        self.apps_only = apps_only
         self.worker = None
         self.selected_entry = None
+        self._selecting = False
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(12)
-        intro = label(tr('Araçlarını seç, erişimini incele, tek yerden kur. Kurulum sen seçmeden başlamaz.'), "subtitle")
+        intro = label(tr('Uygulamalara kendi MCP bağlantılarınla eriş. Hesap erişimi ve izinler ilgili sağlayıcıdan yönetilir.') if apps_only else tr('Araçlarını seç, erişimini incele, tek yerden kur. Kurulum sen seçmeden başlamaz.'), "subtitle")
         layout.addWidget(intro)
         top = QHBoxLayout()
         self.search = QLineEdit()
@@ -53,7 +69,7 @@ class ExtensionBrowser(QWidget):
         self.search.setAccessibleName(tr('Eklenti ara'))
         self.category = ChoiceBox()
         self.category.addItem(tr('Tüm alanlar'), '')
-        for category in dict.fromkeys(entry['category'] for entry in self.library.entries):
+        for category in dict.fromkeys(entry['category'] for entry in self.library.entries if not apps_only or entry.get('app')):
             self.category.addItem(tr(category), category)
         self.category.setAccessibleName(tr('Eklenti alanı'))
         self.category.setMaximumWidth(190)
@@ -76,6 +92,7 @@ class ExtensionBrowser(QWidget):
         self.list = QListWidget()
         self.list.setAccessibleName(tr('Eklenti kütüphanesi'))
         self.list.setMinimumWidth(210)
+        self.list.setIconSize(QSize(24, 24))
         self.list.setSpacing(4)
         self.list.setObjectName('extensionList')
         self.list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
@@ -93,6 +110,17 @@ class ExtensionBrowser(QWidget):
         detail.setSpacing(10)
         self.title = label(tr('Bir eklenti seç'), "brand")
         self.publisher = label("", "status")
+        self.detail_icon = QLabel()
+        self.detail_icon.setFixedSize(38, 38)
+        title_row = QHBoxLayout()
+        title_row.setSpacing(12)
+        title_row.addWidget(self.detail_icon)
+        title_column = QVBoxLayout()
+        title_column.setSpacing(3)
+        title_column.addWidget(self.title)
+        title_column.addWidget(self.publisher)
+        title_row.addLayout(title_column, 1)
+        detail.addLayout(title_row)
         self.description = label("")
         self.connection_kind = label('', 'pill')
         self.access = label("", "status")
@@ -109,22 +137,24 @@ class ExtensionBrowser(QWidget):
         self.enable.setToolTip(tr('Etkin sunucular sohbette araç çağrıları için çalıştırılabilir.'))
         self.command = QPlainTextEdit()
         self.command.setReadOnly(True)
-        self.command.setMaximumHeight(78)
+        self.command.setFixedHeight(54)
         self.command.setAccessibleName(tr('Kurulum kaynağı'))
-        for field in (self.connection_kind, self.title, self.publisher, self.description):
+        for field in (self.connection_kind, self.description):
             detail.addWidget(field, alignment=Qt.AlignmentFlag.AlignLeft) if field is self.connection_kind else detail.addWidget(field)
         detail.addSpacing(8)
         detail.addWidget(label(tr('Erişim ve kapsam'), 'subtitle'))
         detail.addWidget(self.access)
         detail.addWidget(label(tr('Gereksinimler'), 'subtitle'))
         detail.addWidget(self.requirements)
-        for field in (self.workspace_row, self.command, self.enable):
+        for field in (self.workspace_row, self.command):
             detail.addWidget(field)
         detail.addStretch()
         actions = QHBoxLayout()
         self.source = button(tr('Resmî kaynak'), self.open_source, icon_name="globe")
         self.source.setObjectName("ghost")
         self.install_button = button(tr('Kur ve ekle'), self.install, True, "download")
+        self.test_button = button(tr('Bağlantıyı test et'), self.test_connection, icon_name='play')
+        self.test_button.hide()
         actions.addWidget(self.source)
         actions.addStretch()
         actions.addWidget(self.install_button)
@@ -133,12 +163,29 @@ class ExtensionBrowser(QWidget):
         right.setContentsMargins(0, 0, 0, 0)
         right.setSpacing(10)
         right.addWidget(self.detail_scroll, 1)
-        right.addLayout(actions)
+        self.install_footer = QWidget()
+        footer = QVBoxLayout(self.install_footer)
+        footer.setContentsMargins(18, 16, 18, 12)
+        footer.setSpacing(12)
+        enabled_row = QHBoxLayout()
+        enabled_row.setSpacing(12)
+        enabled_row.addWidget(self.enable)
+        enabled_row.addStretch()
+        enabled_row.addWidget(self.test_button)
+        footer.addLayout(enabled_row)
+        footer.addLayout(actions)
+        right.addWidget(self.install_footer)
         split.addWidget(self.detail_panel)
         split.setSizes([280, 470])
         layout.addWidget(split, 1)
         self.status = label("", "status")
         layout.addWidget(self.status)
+        self.install_progress = QProgressBar()
+        self.install_progress.setRange(0, 0)
+        self.install_progress.setFixedHeight(4)
+        self.install_progress.setTextVisible(False)
+        self.install_progress.hide()
+        layout.addWidget(self.install_progress)
         bottom = QHBoxLayout()
         bottom.addWidget(button(tr('JSON yapıştır'), self.import_json, icon_name="file"))
         bottom.addWidget(button(tr('Bağlantıları kopyala'), self.copy_json, icon_name="copy"))
@@ -153,6 +200,7 @@ class ExtensionBrowser(QWidget):
         self.category.currentIndexChanged.connect(self.refresh)
         self.type_filter.currentChanged.connect(self.refresh)
         self.list.currentItemChanged.connect(self.select)
+        self.enable.toggled.connect(self.toggle_enabled)
         self.refresh()
 
     def refresh(self):
@@ -165,24 +213,29 @@ class ExtensionBrowser(QWidget):
         selected_row = 0
         kind = self.type_filter.currentData()
         for entry in sorted(self.library.entries, key=lambda entry: entry['name'].casefold()):
+            if self.apps_only and not entry.get('app'):
+                continue
             if kind == 'installed' and entry['id'] not in installed:
                 continue
-            if kind == 'remote' and entry['kind'] != 'http' or kind == 'local' and entry['kind'] == 'http':
+            remote = entry['kind'] == 'http' and not entry.get('local_http')
+            if kind == 'remote' and not remote or kind == 'local' and remote:
                 continue
             if category and entry["category"] != category:
                 continue
             if query and query not in " ".join(tr(str(entry.get(k, ""))) for k in ("name", "publisher", "description", "category")).casefold():
                 continue
-            item = QListWidgetItem(entry["name"] + "\n" + (tr('Eklendi · ') if entry["id"] in installed else "") + tr(entry['category']))
+            state = next((spec for spec in self.window.config.settings.mcp_servers if spec.get('library_id') == entry['id']), None)
+            suffix = tr('Etkin') if state and state.get('enabled') else tr('Kapalı') if state else tr(entry['category'])
+            item = QListWidgetItem(entry["name"] + "\n" + suffix)
             item.setToolTip(entry['name'] + '\n' + tr(entry['description']))
             item.setData(Qt.ItemDataRole.UserRole, entry)
-            glyph = {'Dosyalar': 'folder', 'Belgeler': 'file', 'Araştırma': 'globe', 'Bellek ve plan': 'book', 'Geliştirme': 'code', 'Yardımcılar': 'clock', 'Dokümantasyon': 'book'}.get(entry['category'], 'tools')
-            item.setIcon(icon(glyph))
+            item.setIcon(icon(self.entry_icon(entry)))
             self.list.addItem(item)
             if entry['id'] == selected_id:
                 selected_row = self.list.count()-1
         self.list.blockSignals(False)
-        self.count_label.setText(tr('{visible} / {total} eklenti · {installed} eklendi', visible=self.list.count(), total=len(self.library.entries), installed=len(installed & {e['id'] for e in self.library.entries})))
+        catalog = [e for e in self.library.entries if not self.apps_only or e.get('app')]
+        self.count_label.setText(tr('{visible} / {total} eklenti · {installed} eklendi', visible=self.list.count(), total=len(catalog), installed=len(installed & {e['id'] for e in catalog})))
         self.detail_panel.setVisible(bool(self.list.count()))
         if self.list.count():
             self.list.setCurrentRow(selected_row)
@@ -196,20 +249,90 @@ class ExtensionBrowser(QWidget):
             self.selected_entry = None
             return
         entry = self.selected_entry = item.data(Qt.ItemDataRole.UserRole)
-        self.connection_kind.setText(tr('Uzak MCP · HTTPS') if entry['kind'] == 'http' else tr('Yerel MCP · Node.js') if entry['kind'] == 'npm' else tr('Yerel MCP · Python'))
+        self.detail_icon.setPixmap(icon(self.entry_icon(entry)).pixmap(32, 32))
+        self.connection_kind.setText(tr('Yerel MCP · HTTP') if entry.get('local_http') else tr('Uzak MCP · HTTPS') if entry['kind'] == 'http' else tr('Yerel MCP · Node.js') if entry['kind'] == 'npm' else tr('Yerel MCP · Python'))
         self.title.setText(entry["name"])
         self.publisher.setText(entry["publisher"] + " · " + tr(entry["category"]))
         self.description.setText(tr(entry["description"]))
         self.access.setText(tr(entry["permissions"]))
         required = requirement(entry)
         prefix = 'Ortam değişkeni gerekli: '
-        self.requirements.setText(tr(prefix) + required[len(prefix):] if required.startswith(prefix) else tr(required))
+        self.requirements.setText(_auth_message(entry) or (tr(prefix) + required[len(prefix):] if required.startswith(prefix) else tr(required)))
         self.workspace_row.setVisible(bool(entry.get("workspace")))
         self.command.setPlainText(entry.get("package") or entry.get("url", ""))
-        already = any(spec.get("library_id") == entry["id"] for spec in self.window.config.settings.mcp_servers)
+        configured = next((spec for spec in self.window.config.settings.mcp_servers if spec.get("library_id") == entry["id"]), None)
+        already = configured is not None
+        self._selecting = True
+        self.enable.setText(tr('Etkin') if already else tr('Kurulumdan sonra etkinleştir'))
+        self.enable.setChecked(bool(configured and configured.get('enabled')))
+        self._selecting = False
+        self.test_button.setVisible(already)
         self.install_button.setText(tr('Bağlantı eklendi') if already else tr('Bağlantıyı ekle') if entry["kind"] == "http" else tr('Kur ve ekle'))
         self.install_button.setEnabled(not already and not (self.worker and self.worker.isRunning()))
-        self.status.setText("" if not already else tr('Bu eklenti Bağlantılar sayfasında. Oradan test edebilir, düzenleyebilir veya kaldırabilirsin.'))
+        self.status.setText("" if not already else tr('Yapılandırıldı · bağlantı doğrulaması için Test et seç. Hesapların izinleri kendi sağlayıcında yönetilir.'))
+
+    def toggle_enabled(self, enabled):
+        if self._selecting or not self.selected_entry:
+            return
+        for spec in self.window.config.settings.mcp_servers:
+            if spec.get('library_id') != self.selected_entry['id']:
+                continue
+            issue = authentication_issue(self.selected_entry) if enabled else ''
+            if issue:
+                self.enable.blockSignals(True)
+                self.enable.setChecked(False)
+                self.enable.blockSignals(False)
+                self.status.setText(_auth_message(self.selected_entry))
+                return
+            spec['enabled'] = enabled
+            self.window.config.save()
+            self.window.refresh_mcp()
+            self.refresh()
+            return
+
+    def test_connection(self):
+        if not self.selected_entry or self.worker and self.worker.isRunning():
+            return
+        if self.window.config.settings.offline:
+            self.status.setText(tr('Çevrimdışı modda bağlantı testi kapalı.'))
+            return
+        spec = next((copy.deepcopy(spec) for spec in self.window.config.settings.mcp_servers if spec.get('library_id') == self.selected_entry['id']), None)
+        if spec is None:
+            return
+        from ..mcp import MCPClient
+        self.set_installing(True)
+        self.cancel_button.setText(tr('Testi durdur'))
+        self.status.setText(tr('Bağlantı deneniyor…'))
+        def action(worker):
+            client = MCPClient(spec, cancel=worker.cancel, timeout=20)
+            try:
+                client.open()
+                if worker.cancel.is_set():
+                    return None
+                return client.tools()
+            except InterruptedError:
+                return None
+            finally:
+                client.close()
+        def done(tools):
+            self.set_installing(False)
+            self.select(self.list.currentItem())
+            self.status.setText(tr('Bağlantı testi durduruldu.') if tools is None else tr('Bağlantı doğrulandı · {count} araç', count=len(tools)))
+            self.status.setToolTip('\n'.join(tool.get('name', '') for tool in tools or []))
+        self.worker = self.window.run_task(action, done, self.status.setText)
+        self.worker.operation = 'test'
+        self.worker.failed.connect(lambda message: (self.set_installing(False), self.status.setText(message)))
+
+    @staticmethod
+    def entry_icon(entry):
+        return entry.get('icon') or {'Dosyalar': 'folder', 'Belgeler': 'file', 'Araştırma': 'globe', 'Bellek ve plan': 'thinking', 'Geliştirme': 'code', 'Yardımcılar': 'clock', 'Dokümantasyon': 'book'}.get(entry['category'], 'tools')
+
+    def set_installing(self, active):
+        self.install_progress.setVisible(active)
+        self.cancel_button.setVisible(active)
+        for control in (self.search, self.category, self.type_filter, self.list, self.workspace, self.enable, self.test_button):
+            control.setEnabled(not active)
+        self.install_button.setEnabled(not active)
 
     def choose_folder(self):
         path = QFileDialog.getExistingDirectory(self, tr('Proje klasörü'), self.workspace.text())
@@ -228,11 +351,11 @@ class ExtensionBrowser(QWidget):
             self.status.setText(tr('Kurulum için internet gerekli. Genel ayarlardan çevrimdışı modu kapat.'))
             return
         ident, workspace, enabled = entry["id"], self.workspace.text().strip(), self.enable.isChecked()
-        if enabled and any(not os.environ.get(name) for name in [*entry.get('header_env', {}).values(), *entry.get('required_env', [])]):
-            self.status.setText(tr('Önce gerekli ortam değişkenini tanımla veya etkinleştirmeden ekle.'))
+        if enabled and authentication_issue(entry):
+            self.status.setText(_auth_message(entry))
             return
-        self.install_button.setEnabled(False)
-        self.cancel_button.show()
+        self.set_installing(True)
+        self.cancel_button.setText(tr('Kurulumu durdur'))
         self.status.setText(tr('Kurulum hazırlanıyor…'))
         def action(worker):
             try:
@@ -241,7 +364,7 @@ class ExtensionBrowser(QWidget):
                 return None
         def complete(spec):
             if spec is None:
-                self.cancel_button.hide()
+                self.set_installing(False)
                 self.refresh()
                 self.status.setText(tr('Kurulum durduruldu. İstediğinde yeniden deneyebilirsin.'))
                 return
@@ -251,20 +374,19 @@ class ExtensionBrowser(QWidget):
                 servers.append(spec)
                 self.window.config.save()
                 self.window.refresh_mcp()
-            self.cancel_button.hide()
+            self.set_installing(False)
             self.refresh()
             self.status.setText(tr('Bağlantı eklendi. ') + (tr('Sohbette kullanılabilir.') if enabled else tr('Bağlantılar sayfasında test edip etkinleştirebilirsin.')))
         self.worker = self.window.run_task(action, complete, self.status.setText)
         def failed(message):
             self.status.setText(message)
-            self.cancel_button.hide()
-            self.install_button.setEnabled(True)
+            self.set_installing(False)
         self.worker.failed.connect(failed)
 
     def cancel(self):
         if self.worker:
             self.worker.cancel.set()
-            self.status.setText(tr('Kurulum durduruluyor…'))
+            self.status.setText(tr('Bağlantı testi durduruluyor…') if getattr(self.worker, 'operation', '') == 'test' else tr('Kurulum durduruluyor…'))
 
     def copy_json(self):
         QApplication.clipboard().setText(export_configuration(self.window.config.settings.mcp_servers))
@@ -292,6 +414,234 @@ class ExtensionBrowser(QWidget):
         dialog.body.addWidget(button(tr('İçe aktar'), save, True), alignment=Qt.AlignmentFlag.AlignRight)
         dialog.exec()
         dialog.deleteLater()
+
+
+class SkillsBrowser(QWidget):
+    def __init__(self, window):
+        super().__init__()
+        from ..skills import SkillLibrary
+        self.window = window
+        self.library = SkillLibrary(window.config)
+        self.selected_id = None
+        self._selecting = False
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(12)
+        layout.addWidget(label(tr('Beceriler modeline çalışma kılavuzu sağlar. Etkin beceriler görevle eşleştiğinde kullanılır; yeni bir model veya araç yetkisi eklemez.'), 'subtitle'))
+        actions = QHBoxLayout()
+        self.search = QLineEdit()
+        self.search.setPlaceholderText(tr('Beceri adı veya açıklamasında ara…'))
+        self.search.setClearButtonEnabled(True)
+        actions.addWidget(self.search, 1)
+        actions.addWidget(button(tr('SKILL.md seç'), self.import_file, icon_name='file'))
+        actions.addWidget(button(tr('Klasörden ekle'), self.import_folder, icon_name='folder'))
+        layout.addLayout(actions)
+        self.scope = FilterTabs()
+        for title, value in [('Tümü', ''), ('Kütüphane', 'available'), ('Yerleşik', 'bundled'), ('İçe aktarılan', 'imported'), ('Etkin', 'enabled')]:
+            self.scope.addItem(tr(title), value)
+        layout.addWidget(self.scope)
+        split = QSplitter(Qt.Orientation.Horizontal)
+        split.setChildrenCollapsible(False)
+        self.list = QListWidget()
+        self.list.setObjectName('extensionList')
+        self.list.setIconSize(QSize(24, 24))
+        self.list.setSpacing(4)
+        self.list.setMinimumWidth(220)
+        split.addWidget(self.list)
+        right = QWidget()
+        column = QVBoxLayout(right)
+        column.setContentsMargins(18, 8, 0, 8)
+        self.title = label('', 'brand')
+        self.description = label('', 'subtitle')
+        self.source = label('', 'status')
+        self.source.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.support = label(tr('Metin kılavuzları ve kaynaklar yüklenir. Başlatıcılar, scriptler, tarayıcı veya hesap yetkileri ayrıca kullanılabilir araç gerektirir.'), 'status')
+        self.enabled = QCheckBox(tr('Etkin'))
+        self.preview = QPlainTextEdit()
+        self.preview.setReadOnly(True)
+        self.preview.setAccessibleName(tr('Beceri kılavuzu'))
+        self.resource = ChoiceBox()
+        self.resource.setAccessibleName(tr('Beceri kaynak dosyası'))
+        self.resource.currentIndexChanged.connect(self.read_resource)
+        for field in (self.title, self.description, self.source, self.support, self.enabled):
+            column.addWidget(field)
+        column.addWidget(self.resource)
+        column.addWidget(self.preview, 1)
+        self.remove_button = button(tr('Beceriyi kaldır'), self.remove, icon_name='trash')
+        skill_actions = QHBoxLayout()
+        self.source_button = button(tr('Resmî kaynak'), self.open_source, icon_name='globe')
+        self.source_button.setObjectName('ghost')
+        self.install_button = button(tr('Beceriyi ekle'), self.install_curated, True, 'download')
+        skill_actions.addWidget(self.source_button)
+        skill_actions.addStretch()
+        skill_actions.addWidget(self.remove_button)
+        skill_actions.addWidget(self.install_button)
+        column.addLayout(skill_actions)
+        split.addWidget(right)
+        split.setSizes([280, 500])
+        self.details = right
+        layout.addWidget(split, 1)
+        self.status = label('', 'status')
+        layout.addWidget(self.status)
+        layout.addWidget(label(tr('Yalnızca seçtiğin SKILL.md ve sınırlı metin kaynakları içe aktarılır. Kişisel klasörlerin taranmaz; scriptler çalıştırılmaz.'), 'status'))
+        self.search.textChanged.connect(self.refresh)
+        self.scope.currentChanged.connect(self.refresh)
+        self.list.currentItemChanged.connect(self.select)
+        self.enabled.toggled.connect(self.toggle_enabled)
+        self.refresh()
+
+    def refresh(self):
+        selected = self.selected_id
+        self.list.blockSignals(True)
+        self.list.clear()
+        query, scope = self.search.text().casefold().strip(), self.scope.currentData()
+        row = 0
+        for entry in sorted(self.library.entries(include_available=True), key=lambda entry: (not entry.get('curated'), entry['name'].casefold())):
+            if (scope == 'available' and not entry.get('curated') or scope == 'bundled' and not entry['bundled']
+                    or scope == 'imported' and (entry['bundled'] or entry.get('curated')) or scope == 'enabled' and not entry['enabled']):
+                continue
+            if query and query not in (entry['name'] + ' ' + entry['description']).casefold():
+                continue
+            text = entry['name'] + '\n' + (tr('Eklenebilir') if entry.get('installed') is False else tr('Etkin') if entry['enabled'] else tr('Kapalı'))
+            item = QListWidgetItem(text)
+            item.setData(Qt.ItemDataRole.UserRole, entry)
+            item.setIcon(icon('book'))
+            self.list.addItem(item)
+            if entry['id'] == selected:
+                row = self.list.count()-1
+        self.list.blockSignals(False)
+        self.details.setVisible(bool(self.list.count()))
+        if self.list.count():
+            self.list.setCurrentRow(row)
+            self.select(self.list.currentItem())
+        else:
+            self.selected_id = None
+            self.status.setText(tr('Eşleşen beceri yok. Filtreyi değiştir veya kendi SKILL.md dosyanı ekle.'))
+
+    def select(self, item, previous=None):
+        if item is None:
+            return
+        entry = item.data(Qt.ItemDataRole.UserRole)
+        self.selected_id = entry['id']
+        self.title.setText(entry['name'])
+        self.description.setText(entry['description'])
+        self.source.setText(tr('Yerleşik') if entry['bundled'] else entry['license'] + ' · ' + entry['revision'][:12] if entry.get('curated') else str(entry['source']))
+        self.source_button.setVisible(bool(entry.get('curated')))
+        available = entry.get('installed') is False
+        self.install_button.setVisible(available)
+        self.enabled.setVisible(not available)
+        self._selecting = True
+        self.enabled.setChecked(entry['enabled'])
+        self._selecting = False
+        self.remove_button.setVisible(not entry['bundled'] and not available)
+        try:
+            value = self.library.read(entry['id'], require_enabled=False)
+            self.preview.setPlainText(value['content'])
+            self.status.setText(tr('Kılavuzun sınırlı bir bölümü gösteriliyor.') if value.get('limited') else tr('Kılavuz önizlemesi · metin düzenlenmez, script çalıştırılmaz.'))
+            resources = value.get('resources', [])
+            missing = value.get('missing_resources', [])
+            self.source.setToolTip('')
+            self.resource.blockSignals(True)
+            self.resource.clear()
+            self.resource.addItem('SKILL.md', 'SKILL.md')
+            for resource in resources:
+                self.resource.addItem(str(resource), str(resource))
+            self.resource.blockSignals(False)
+            self.resource.setVisible(bool(resources))
+            if resources or missing:
+                self.source.setToolTip(tr('{available} kaynak hazır · {missing} kaynak alınamadı', available=len(resources), missing=len(missing)))
+        except (ValueError, OSError) as exc:
+            self.preview.clear()
+            self.status.setText(str(exc))
+
+    def read_resource(self):
+        if not self.selected_id or not self.resource.currentData():
+            return
+        try:
+            value = self.library.read(self.selected_id, path=self.resource.currentData(), require_enabled=False)
+            self.preview.setPlainText(value['content'])
+            self.status.setText(tr('Kılavuzun sınırlı bir bölümü gösteriliyor.') if value.get('limited') else tr('Kılavuz önizlemesi · metin düzenlenmez, script çalıştırılmaz.'))
+        except (ValueError, OSError) as exc:
+            self.status.setText(str(exc))
+
+    def install_curated(self):
+        if not self.selected_id:
+            return
+        try:
+            self.library.install_curated(self.selected_id)
+            self.refresh()
+            self.status.setText(tr('Özgün beceri ve kaynakları doğrulandı; gerektiğinde sohbette kullanılabilir.'))
+        except (ValueError, OSError) as exc:
+            self.status.setText(str(exc))
+
+    def open_source(self):
+        entry = next((entry for entry in self.library.entries(include_available=True) if entry['id'] == self.selected_id), None)
+        if entry and entry.get('curated'):
+            QDesktopServices.openUrl(QUrl(entry['source']))
+
+    def toggle_enabled(self, enabled):
+        if self._selecting or not self.selected_id:
+            return
+        try:
+            self.library.set_enabled(self.selected_id, enabled)
+            self.refresh()
+        except (ValueError, OSError) as exc:
+            self.status.setText(str(exc))
+
+    def import_file(self):
+        raw, _ = QFileDialog.getOpenFileName(self, tr('Beceri kılavuzu seç'), str(self.window.config.root), 'SKILL.md (SKILL.md);;Markdown (*.md)')
+        if raw:
+            self.import_path(raw)
+
+    def import_folder(self):
+        raw = QFileDialog.getExistingDirectory(self, tr('SKILL.md içeren klasörü seç'), str(self.window.config.root))
+        if raw:
+            self.import_path(raw)
+
+    def import_path(self, raw):
+        try:
+            entry = self.library.import_path(Path(raw))
+            self.selected_id = entry['id']
+            self.search.clear()
+            self.scope.setCurrentIndex(0)
+            self.refresh()
+            self.status.setText(tr('Beceri içe aktarıldı. Etkinlik durumunu buradan değiştirebilirsin.'))
+        except (ValueError, OSError) as exc:
+            self.status.setText(str(exc))
+
+    def remove(self):
+        if not self.selected_id:
+            return
+        try:
+            self.library.remove(self.selected_id)
+            self.selected_id = None
+            self.refresh()
+        except (ValueError, OSError) as exc:
+            self.status.setText(str(exc))
+
+
+class IntegrationHub(QWidget):
+    """One management area; app rows reuse actual MCP configurations."""
+    def __init__(self, window):
+        super().__init__()
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        self.tabs = QTabWidget()
+        self.mcp = ExtensionBrowser(window)
+        self.apps = ExtensionBrowser(window, apps_only=True)
+        self.skills = SkillsBrowser(window)
+        self.tabs.addTab(self.mcp, 'MCP')
+        self.tabs.addTab(self.apps, tr('Uygulamalar'))
+        self.tabs.addTab(self.skills, tr('Beceriler'))
+        self.tabs.currentChanged.connect(self.refresh_current)
+        layout.addWidget(self.tabs)
+
+    @property
+    def worker(self):
+        return next((panel.worker for panel in (self.mcp, self.apps) if panel.worker and panel.worker.isRunning()), None)
+
+    def refresh_current(self, index):
+        self.tabs.widget(index).refresh()
 
 
 class GitHubPanel(QWidget):
@@ -511,10 +861,11 @@ class GitHubPanel(QWidget):
         self.task(action, complete)
 
 
-def show_extension_library(window):
-    dialog = InlineDialog(window.centralWidget(), tr('Eklenti kütüphanesi'), 900, 650, _surfaces(window))
+def show_extension_library(window, initial_tab=0):
+    dialog = InlineDialog(window.centralWidget(), tr('Eklenti kütüphanesi'), 980, 720, _surfaces(window))
     try:
-        panel = ExtensionBrowser(window)
+        panel = IntegrationHub(window)
+        panel.tabs.setCurrentIndex(initial_tab)
     except Exception as exc:
         dialog.deleteLater()
         window.error(str(exc))

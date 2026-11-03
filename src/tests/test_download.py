@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 import httpx
 
-from ai_studio.engine.download import download_model
+from ai_studio.engine.download import download_model, download_lock, digest, write_manifest, validate_info
 
 
 class DownloadTests(unittest.TestCase):
@@ -216,6 +216,71 @@ class DownloadTests(unittest.TestCase):
             path = download_model(model, Path(raw), threading.Event())
             self.assertEqual(path.name, model['filename'])
             self.assertEqual(path.read_bytes(), payload)
+
+    def test_concurrent_download_is_rejected_and_os_lock_releases(self):
+        with tempfile.TemporaryDirectory() as raw:
+            target = Path(raw)
+            with download_lock(target, 'model.gguf'):
+                with self.assertRaisesRegex(RuntimeError, 'başka bir işlemde'):
+                    download_model(self.fixture(b'GGUFtest')[0], target, threading.Event())
+            with download_lock(target, 'model.gguf'):
+                pass
+
+    def test_resume_files_cannot_be_symlinks(self):
+        for suffix in ['', '.part', '.part.json', '.metadata.json']:
+            with self.subTest(suffix=suffix), tempfile.TemporaryDirectory() as raw:
+                target = Path(raw) / 'models'
+                target.mkdir()
+                outside = Path(raw) / 'outside'
+                outside.write_text('private')
+                (target / ('model.gguf' + suffix)).symlink_to(outside)
+                with self.assertRaisesRegex(ValueError, 'sembolik'):
+                    download_model(self.fixture(b'GGUFtest')[0], target, threading.Event())
+                self.assertEqual(outside.read_text(), 'private')
+
+    def test_uppercase_checksum_is_valid_and_metadata_writes_are_atomic(self):
+        payload = b'GGUFtest'
+        model, metadata = self.fixture(payload)
+        metadata['siblings'][0]['lfs']['sha256'] = metadata['siblings'][0]['lfs']['sha256'].upper()
+        original = httpx.Client
+        def handler(request):
+            return httpx.Response(200, json=metadata) if '/api/models/' in str(request.url) else httpx.Response(200, content=payload)
+        with tempfile.TemporaryDirectory() as raw, patch('ai_studio.engine.download.httpx.Client', side_effect=lambda **kw: original(transport=httpx.MockTransport(handler), **kw)):
+            root = Path(raw)
+            path = download_model(model, root, threading.Event())
+            self.assertEqual(path.read_bytes(), payload)
+            self.assertFalse(list(root.glob('.download-*.tmp')))
+            record = root / 'saved.json'
+            write_manifest(record, {'complete':True})
+            self.assertEqual(json.loads(record.read_text()), {'complete':True})
+
+    def test_cancelled_empty_hash_and_post_verification_do_not_publish(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            empty = root / 'empty'
+            empty.touch()
+            cancel = threading.Event()
+            cancel.set()
+            with self.assertRaises(InterruptedError):
+                digest(empty, cancel)
+            payload = b'GGUFtest'
+            model, metadata = self.fixture(payload)
+            cancel.clear()
+            original = httpx.Client
+            def handler(request):
+                return httpx.Response(200, json=metadata) if '/api/models/' in str(request.url) else httpx.Response(200, content=payload)
+            def progress(done, total):
+                if done == total and (root / 'model.gguf.part').exists():
+                    cancel.set()
+            with patch('ai_studio.engine.download.httpx.Client', side_effect=lambda **kw: original(transport=httpx.MockTransport(handler), **kw)):
+                with self.assertRaises(InterruptedError):
+                    download_model(model, root, cancel, progress)
+            self.assertFalse((root / 'model.gguf').exists())
+            self.assertTrue((root / 'model.gguf.part').exists())
+
+    def test_boolean_file_size_is_not_trusted_metadata(self):
+        info = {'repo':'test/model','filename':'model.gguf','revision':'revision','size':True,'sha256':'a'*64}
+        self.assertFalse(validate_info(info, 'test/model', 'model.gguf'))
 
 
 if __name__ == "__main__":

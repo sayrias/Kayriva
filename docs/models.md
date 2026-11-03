@@ -4,9 +4,9 @@ Kayriva modelleri marka, görev, dosya boyutu ve bellek sınıfına göre göste
 
 ## Model seçme
 
-1. **Ayarlar → Modeller** sayfasını aç. Marka sekmesi ve aramayla aileyi bul; kod, akıl yürütme, görsel veya araç kullanımı filtresiyle daralt.
-2. Boyut ve bellek sınıfını ayarla. Bu sınıflar kalite puanı değildir; daha büyük bir dosya daha iyi veya daha hızlı sonuç garantisi vermez.
-3. Aynı modelin kuantizasyonunu kart içinden seç. Dosya boyutu, lisans ve cihazına uygunluk açıklamasını oku; ardından indir.
+1. **Ayarlar → Modeller** sayfasını aç. Varsayılan **Tüm modeller / Varyantlar** görünümü 71 ailedeki 141 katalog varyantının tamamını ayrı satırda gösterir. Arama bir modelin veya kuantizasyonun adını bulur.
+2. **Filtreler** bölümünü açarak marka, görev, boyut ve bellek sınıfını ayarla. Bu sınıflar kalite puanı değildir; daha büyük bir dosya daha iyi veya daha hızlı sonuç garantisi vermez.
+3. Varyant satırından istediğin dosyayı indir veya **Aileler** görünümünde aynı modelin kuantizasyonunu kart içinden seç. Dosya boyutu, lisans ve cihazına uygunluk açıklamasını oku; ardından indir.
 4. Kurulu modeli üst çubuktan seç. Genel ayarlardaki yerel motor hazırsa ilk mesajda model yüklenir.
 
 **NVIDIA marka filtresi modelin üreticisini gösterir.** CUDA/Vulkan/CPU seçimi ise Genel sayfasındaki yerel motorla ilgilidir. Bir NVIDIA modelini listelemek, bütün NVIDIA ekran kartlarında aynı performansı vaat etmek anlamına gelmez. Mimari ve motor desteği model notlarında belirtilir.

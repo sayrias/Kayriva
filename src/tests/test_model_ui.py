@@ -91,6 +91,32 @@ class ModelLibraryUI(unittest.TestCase):
         self.assertIn('2 model', w.model_count.text())
         self.assertEqual(w.model_size.value(), 128)
 
+    def test_all_variants_are_individual_rows_and_family_view_remains_optional(self):
+        w=self.window
+        catalog=json.loads((self.root/'models/catalog.json').read_text())
+        extra={**catalog[0],'id':'qwen-test-q8','quant':'Q8_0','filename':'another.gguf','approx_gb':6}
+        (self.root/'models/catalog.json').write_text(json.dumps([*catalog,extra]))
+        w.reset_model_filters();self.app.processEvents()
+        rows=[w.model_layout.itemAt(i).widget() for i in range(w.model_layout.count())]
+        rows=[row for row in rows if row and row.objectName()=='modelVariantRow']
+        self.assertEqual({r.property('modelId') for r in rows},{m['id'] for m in [*catalog,extra]})
+        self.assertIn('3 model varyantı',w.model_count.text());self.assertIn('2 aile',w.model_count.text())
+        with patch.object(w,'download') as download:
+            next(b for b in rows[-1].findChildren(QPushButton) if b.text()=='İndir').click()
+            self.assertEqual(download.call_args.args[0]['id'],rows[-1].property('modelId'))
+        w.model_view.setCurrentIndex(w.model_view.findData('families'))
+        families=[w.model_layout.itemAt(i).widget() for i in range(w.model_layout.count())]
+        self.assertEqual(sum(bool(r and r.objectName()=='modelCard') for r in families),2)
+
+    def test_compact_library_gives_the_list_most_of_the_content_area(self):
+        w=self.window;w.resize(940,640);w.open_preferences(2);QTest.qWait(80)
+        self.assertTrue(w.model_advanced.isHidden())
+        page=w.preference_tabs.currentWidget()
+        self.assertGreater(w.model_scroll.height()/page.height(),.60)
+        w.model_advanced_toggle.click();QTest.qWait(40);self.assertTrue(w.model_brands.isVisible())
+        w.model_brands.setCurrentIndex(w.model_brands.findData('Qwen'));self.assertTrue(w.model_reset.isVisible())
+        w.model_advanced_toggle.click();self.assertTrue(w.model_advanced.isHidden());self.assertIn('1',w.model_advanced_toggle.text())
+
     def test_model_import_keeps_bad_path_recoverable_then_detects_uppercase_gguf(self):
         model = self.root / 'Büyük Yerel Model.GGUF'
         model.write_bytes(b'GGUFtest')
@@ -123,7 +149,8 @@ class ModelLibraryUI(unittest.TestCase):
             self.wait_worker(self.window.catalog_worker)
         self.assertEqual(refresh.call_args.args[1], self.root / 'runtime/catalog-cache.json')
         self.assertIn('Katalog güncel', self.window.model_count.text())
-        self.assertEqual(self.window.catalog_refresh.text(), 'Kataloğu yenile')
+        self.assertEqual(self.window.catalog_refresh.accessibleName(), 'Kataloğu yenile')
+        self.assertFalse(self.window.catalog_refresh.icon().isNull())
 
     def test_projector_download_does_not_replace_active_chat_model(self):
         w = self.window
@@ -145,7 +172,10 @@ class ModelLibraryUI(unittest.TestCase):
         w = self.window
         with patch('ai_studio.ui.integrations.show_extension_library') as library:
             w.open_extension_library()
-            library.assert_called_once_with(w)
+            library.assert_called_once_with(w, initial_tab=0)
+            library.reset_mock()
+            w.open_extension_library(initial_tab=2)
+            library.assert_called_once_with(w, initial_tab=2)
         with patch('ai_studio.ui.integrations.show_github_dialog') as github:
             w.open_github(self.root)
             github.assert_called_once_with(w, project_path=self.root)

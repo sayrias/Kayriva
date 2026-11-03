@@ -31,11 +31,11 @@ Keep a conversation close to the files it belongs to. Move between everyday ques
 | **Conversations** | Organize chats by project, search your history, pin conversations, reuse prompts and export replies as Markdown. |
 | **Files and code** | Read and search project files, inspect specific lines, create documents and edit text with checks against unexpected changes. |
 | **Research** | Choose a quick search or a broader investigation, compare sources and save the result to your project. |
-| **Attachments** | Work with text, PDF and Office documents. Use a compatible vision model and matching projector to inspect images. |
+| **Attachments** | Paste images, drop files and work with text, PDF and Office documents. Use a compatible vision model and matching projector to inspect images. |
 | **Planning and tools** | Break work into steps, connect independent MCP tools and create assistant profiles for delegated tasks. |
 | **GitHub** | Browse repositories, create one for a project and review selected files before uploading. |
 
-Follow the progress of a task through its operation stages, elapsed time and sources. Copy or save a reply when it is ready, and stop generation from the same button used to send a message.
+Follow a task through its live operation history, expandable tool results, elapsed time and sources. Resume an interrupted task in the same project from its saved progress. Copy or save a reply when it is ready, and stop generation from the same button used to send a message.
 
 ## Find your model
 
@@ -49,11 +49,11 @@ Model compatibility and performance depend on your hardware and runtime. Larger 
 
 ## Get started
 
-1. **Open Kayriva.** On Windows, run `Kayriva-Setup.exe`. On Linux, extract the archive if needed, then make `Kayriva` executable and launch it:
+1. **Open Kayriva.** On Windows, run `Kayriva-Setup.exe`. On Linux, download `Kayriva-x86_64.AppImage`, allow it to run as a program and launch it:
 
    ```bash
-   chmod +x Kayriva
-   ./Kayriva
+   chmod +x Kayriva-x86_64.AppImage
+   ./Kayriva-x86_64.AppImage
    ```
 
    On its first launch, the Linux app adds **Kayriva** to your applications menu.

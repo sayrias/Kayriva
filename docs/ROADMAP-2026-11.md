@@ -160,3 +160,44 @@ Kaynaklar: [SemVer ön sürümleri](https://semver.org/lang/tr/), [Python sürü
 - [x] 17 MCP bağlantısı: gerçek adlar ve alfabetik liste; Tümü/Yerel/Uzak/Eklenenler sekmeleri; alan filtresi, arama ve korunmuş seçim. Ayrıntılar kaydırılırken kaynak ve kurulum eylemleri görünür kalır.
 - [x] Yeni bağlantılar resmî kaynaklarla karşılaştırıldı. API anahtarı isteyen yerel sunucular anahtar eksikken etkin olarak eklenemez. Bu çalışma yeni MCP paketlerini kurmadı veya ücretli araç çağrısı yapmadı.
 - [x] 203 test geçti. EN/TR masaüstü ve 940×640 kompakt ekranları geçici verilerle incelendi. Linux ve Wine/Windows derlemeleri, Linux arşivi, güncelleme manifesti ve SHA-256 dosyaları yenilendi.
+
+## 3 Kasım · Devam kaydı, araştırma ve belge akışı
+
+- [x] Durdurulan/sınıra ulaşan son görev için Devam et; aynı proje sınırında kalıcı, 64 KB ile sınırlı checkpoint. Kaynak bağlamı, plan ve gerçek araç sonuçları tutulur; dış işlemin sonucu belirsizse tamamlandı sayılmaz.
+- [x] Araştırmada tembel üçlü paralellik, sağlayıcı hata devresi, aşama süre bütçesi ve kısmi kaynak koruma. İlk araştırma için ayrı model planlama turu yok; büyük başarılı yazmalar sonraki istemde tekrar tam metin olarak işlenmez.
+- [x] Belge yönergeleri: açıklayıcı bölümler, örnekler, eski/güncel sürüm ayrımı, gerçek kaynakça ve anlamlı create/append parçaları. Yerel Markdown önizlemesi ve iki belge/plan istemi.
+- [x] Canlı işlem akışı çalışırken sürekli açık; gerçek araç argüman/sonuç genişletme, sınırlı ve bilinen kimlik bilgileri ayıklanmış ayrıntılar, aynı fazda birleşen bekleme bildirimleri.
+- [x] 13 px yazma alanı içerikle büyür; küçük pencerede ekler ve alt düğmeler dahil yükseklik bütçesi, sonra kaydırma. Panodan görsel/dosya, sürükle-bırak ve kaldırılabilir ek önizlemeleri.
+- [x] Proje/görsel/model seçicilerinde gerçek Qt dosya listesi ve boş ad alanı. Marka tetikleyicisi salt okunur; arama popup içinde.
+- [x] 23 MCP bağlantısı; daha okunabilir kütüphane, çoklu npm binary seçimi ve eşzamanlı kurulum kilidi. Bozuk MCP bağlantısı sağlam bağlantıları engellemez; sınırlı ve iptal edilebilir bekleme.
+- [x] Model indirmelerinde süreçler arası kilit, atomik devam metadata'sı, aralık/boş disk/SHA kontrolleri. Başarıda panelin otomatik kapanması, hatada yeniden deneme.
+
+Doğrulama ve sınırlar: durdurma/araştırma/MCP/indirme senaryoları taklit dış servislerle ve gerçek geçici dosyalarla test edilir. İki dilde büyük/küçük Qt ekranları gözle incelenir. Gerçek büyük model/GPU hız kazanımı veya her üretilen belgenin doğruluğu garanti edilmez. Kullanıcının örnek belgesi değiştirilmedi; eski sürüm bilgisi ve yüzeysel kavram listeleri yeni yönergelerin hedefidir. Ayrıntılar: [Task workflows](workflows.md).
+
+Son doğrulama: **233 test geçti** (71,4 sn). Linux AppImage FUSE’siz çıkarma/çalıştırma, iki ekran ve dış AppImage yoluna menü kaydı doğrulandı. Windows Setup Wine’da dört ekran, katalog eşleşmesi, MCP yardımcı sürümü, yeniden kurulum ve kaldırma akışını geçti. Üç dağıtım dosyasının SHA-256 değerleri doğrulandı; tar.gz içindeki AppImage aynı ve çalıştırma izni korunuyor. Paket taramasında bilinen sır biçimi veya kişisel runtime verisi bulunmadı; bu tarama bütün olası sır biçimlerini kapsayan garanti değildir. Wiki paketi 51 sayfa olarak yeniden üretildi ve JSON/bağlantı/üst sayfa kontrollerini geçti.
+
+## Beta 2 · 3 Kasım 2026
+
+- [x] Uygulama sürümü 1.0.0-beta.2; İngilizce yayın metni oluşturuldu. README ve yayın metninde referans uygulama karşılaştırması bulunmaz.
+- [x] Yeni mesaj geldiğinde eski Devam et düğmesi kalkar; geçmiş yüklemesi ve tamamlanan yanıt aynı kurala tabidir.
+- [x] Taslak ve geçmişte tıklanabilir görsel; sığdırma/1:1/yakınlaştırma. Küçük görseli büyütmeden hazırlama.
+- [x] İlk doğal yaklaşım mesajı, gerçek ara bilgilendirmeler, açılır grup ve iç araç/payload ayrıntısı. Özel düşünce zinciri gösterilmez. Açılış kaydı 80 olaylık sınırda korunur.
+- [x] MCP/Uygulamalar/Beceriler sekmeleri; 35 MCP bağlantısı, 17 uygulama görünümü, 8 özgün metin kılavuzu. Yerel SKILL.md ve sınırlandırılmış referans içe aktarma; turda en fazla iki ilgili beceri; gerçek okuma sonrası kullanım bildirimi.
+- [x] Kurulum onay satırında ayırıcıdan boşluk, dar pencerede satırlara ayrılan eylemler ve iptal edilebilir bağlantı testi. Hesap/ortam anahtarı gereksinimleri doğru gösterilir.
+- [x] MCP stdio ve sessiz HTTP beklemelerinde hızlı iptal; sınırlı bağlantı test süresi. Uzak çağrı başladıktan sonra iptal etmek dış işlemi geri almak değildir.
+
+Doğrulama: 258 otomatik test geçti (90,4 sn). İngilizce/Türkçe geniş ve dar arayüzlerde akış, iç ayrıntı, görsel ve kütüphane görüntülendi. Belgelenen sınır: metin becerileri bağımsız bir model, terminal, renderer veya hesap izni sağlamaz; dış hizmetler kişisel yapılandırma gerektirir.
+
+Beta 2 paket doğrulaması tamamlandı: Linux Type 2 AppImage sürüm/üç ekran/katalog/kalıcı menü yolu/MCP yardımcı testi geçti. Windows Setup Wine’da dört ekran, üç katalog eşleşmesi, yardımcı sürümü, yeniden kurulum ve kullanıcı verisini koruyan kaldırma testini geçti. SHA-256 doğrulandı; arşiv AppImage ile aynı ve çalıştırma izni korunuyor. Paket taramasında bilinen sır biçimi veya runtime verisi bulunmadı (106 uygulama modülü; genel sır yokluğu garantisi değildir). Wiki 51 sayfa olarak beta.2 sürümünde yeniden üretildi. Eski beta.1 arşivi dist yerine build/release-bases altında korundu.
+
+
+## Beta 2 · Model listesi ve proje bağlamı son düzenlemesi
+
+- [x] Model ekranı tek kompakt araç çubuğu, isteğe bağlı ayrıntılı filtreler; 940×640 arayüzde listenin sayfa yüksekliğine oranı %76. Varsayılan Tüm modeller / Varyantlar görünümü 141 kaydı ayrı satırda sunar; 71 aile için isteğe bağlı Aileler görünümü korunur.
+- [x] Yazma alanı üzerinde seçili proje ve tam yol ipucu; yeni sohbet mevcut projeyi korur, proje seçicisi taslağı silmeden proje veya projesiz sohbet açar.
+- [x] Sabit araştırma açılışı kaldırıldı. Açıklamalar gerçek modelin kullanıcı isteğine özgü ara mesajlarından gelir; anlatım için ek model turu yoktur.
+- [x] 43 MCP bağlantısı ve 24 uygulama görünümü; Beceriler için doğrudan giriş. 8 yerleşik kılavuza ek olarak 6 özgün, kaynak commit ve lisansı doğrulanmış beceri paketi kullanıcı eklemesiyle etkinleşir. Uzun kılavuzlar sınırlı sayfalarda devam konumuyla okunabilir; tur başına iki kılavuz ve 16.000 karakter sınırı korunur.
+
+Son kaynak doğrulaması: 269 otomatik test (62,6 sn) ve sıralaması değiştirilmiş 31 odaklı test geçti. Değişen arayüz/işçi/beceri kaynaklarında eksik Türkçe→İngilizce sabit metin anahtarı yok. Linux Type 2 AppImage sürüm, açılış, katalog, menü kaydı ve yardımcı araç kontrolünü geçti. Her iki pakette 77 beceri paketi dosyası kaynakla bayt bayt eşleşti. Üç dağıtım dosyasının SHA-256 değerleri ve arşiv içindeki AppImage/çalıştırma izni doğrulandı. Paket taramasında bilinen sır biçimi veya kişisel runtime verisi bulunmadı. Wiki 51 sayfa olarak yeniden üretildi.
+
+Windows Setup Wine’da dört ekran, katalog eşleşmesi, yardımcı araç sürümü, yeniden kurulum ve kullanıcı verisini koruyan kaldırma kontrolünü geçti. Güncel AppImage, tar.gz, Windows Setup ve iki hedefli güncelleme manifesti yerel `dist/` altında hazırdır.

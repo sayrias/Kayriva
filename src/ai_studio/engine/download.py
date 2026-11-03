@@ -3,9 +3,13 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 import re
 import shutil
+import stat
+import tempfile
 import time
+from contextlib import contextmanager
 from pathlib import Path, PurePosixPath
 from urllib.parse import quote
 
@@ -16,6 +20,8 @@ ATTEMPTS = 4
 
 
 def digest(path: Path, cancel=None, progress=lambda *_: None):
+    if cancel and cancel.is_set():
+        raise InterruptedError('Doğrulama durduruldu; dosya korundu')
     h = hashlib.sha256()
     size, done = path.stat().st_size, 0
     progress(0, size)
@@ -49,7 +55,7 @@ def valid_remote_filename(filename):
 
 def validate_info(info, repo, filename):
     return bool(isinstance(info, dict) and info.get('repo') == repo and info.get('filename') == filename
-                and isinstance(info.get('size'), int) and info['size'] > 0
+                and type(info.get('size')) is int and info['size'] > 0
                 and isinstance(info.get('revision'), str) and re.fullmatch(r'[\w.-]+', info['revision'])
                 and isinstance(info.get('sha256'), str) and re.fullmatch(r'[a-fA-F0-9]{64}', info['sha256'])
                 and valid_remote_filename(info.get('remote_filename', filename)))
@@ -125,7 +131,71 @@ def metadata_info(client, repo, filename, cancel, status, revision='main', alias
     return file_info(metadata, repo, filename, aliases, local_filename)
 
 
+@contextmanager
+def download_lock(target: Path, filename: str):
+    """Per-target OS lock protects resumable bytes, and releases after a crash."""
+    path = target / ('.' + filename + '.download.lock')
+    if path.is_symlink():
+        raise ValueError('İndirme kilidi sembolik bağlantı olamaz')
+    descriptor = os.open(path, os.O_RDWR | os.O_CREAT | getattr(os, 'O_NOFOLLOW', 0), 0o600)
+    with os.fdopen(descriptor, 'r+b') as stream:
+        if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
+            raise ValueError('İndirme kilidi normal dosya olmalı')
+        locked = False
+        try:
+            try:
+                if os.name == 'nt':
+                    import msvcrt
+                    if not path.stat().st_size:
+                        stream.write(b'\0'); stream.flush()
+                    stream.seek(0)
+                    msvcrt.locking(stream.fileno(), msvcrt.LK_NBLCK, 1)
+                else:
+                    import fcntl
+                    fcntl.flock(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                locked = True
+            except OSError as exc:
+                raise RuntimeError('Bu model başka bir işlemde indiriliyor. Önce o indirmeyi tamamla veya durdur.') from exc
+            yield
+        finally:
+            if locked:
+                if os.name == 'nt':
+                    stream.seek(0); msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)
+                else:
+                    fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
+    # Do not unlink the lock file: another process could be holding its inode.
+
+
+def write_manifest(path: Path, info: dict):
+    if path.is_symlink():
+        raise ValueError('İndirme bilgisi sembolik bağlantı olamaz')
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(dir=path.parent, prefix='.download-', suffix='.tmp', delete=False) as stream:
+            temporary = Path(stream.name)
+            stream.write(json.dumps(info).encode('utf-8'))
+            stream.flush()
+            os.fsync(stream.fileno())
+        temporary.chmod(0o600)
+        temporary.replace(path)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+
+
 def download_model(model, target: Path, cancel, progress=lambda *_: None, status=lambda _: None):
+    target = Path(target).expanduser().resolve()
+    filename = model.get('filename', '')
+    if not valid_remote_filename(filename) or '/' in filename or not filename.lower().endswith('.gguf'):
+        raise ValueError('Geçersiz yerel GGUF dosyası adı')
+    if cancel.is_set():
+        raise InterruptedError('İndirme durduruldu; kısmi dosya korundu')
+    target.mkdir(parents=True, exist_ok=True)
+    with download_lock(target, filename):
+        return _download_model(model, target, cancel, progress, status)
+
+
+def _download_model(model, target: Path, cancel, progress, status):
     """Verified, commit-pinned download with cancellable retries and resumable data."""
     repo, filename = model['repo'], model['filename']
     remote_filename = model.get('remote_filename', filename)
@@ -135,10 +205,13 @@ def download_model(model, target: Path, cancel, progress=lambda *_: None, status
     final = target/filename
     partial = final.with_suffix(final.suffix + '.part')
     manifest = final.with_suffix(final.suffix + '.part.json')
+    for path in (final, partial, manifest, final.with_suffix(final.suffix + '.metadata.json')):
+        if path.is_symlink() or path.exists() and not path.is_file():
+            raise ValueError('İndirme hedefi normal dosya olmalı; sembolik bağlantı veya klasör kullanılamaz')
     # A previous verified HF metadata response pins the same immutable commit.
     cached = None
     existing_manifest = manifest if manifest.exists() else final.with_suffix(final.suffix + '.metadata.json')
-    if existing_manifest.exists():
+    if existing_manifest.exists() and existing_manifest.stat().st_size <= 256_000:
         try:
             candidate=json.loads(existing_manifest.read_text())
             if validate_info(candidate,repo,filename): cached=candidate
@@ -151,15 +224,18 @@ def download_model(model, target: Path, cancel, progress=lambda *_: None, status
             else:
                 info=metadata_info(client,repo,remote_filename,cancel,status,
                                    model.get('revision', 'main'), model.get('filename_aliases', ()), filename)
-            sha,size,revision=info['sha256'],info['size'],info['revision']
+            sha,size,revision=info['sha256'].lower(),info['size'],info['revision']
             if final.exists():
                 status('SHA-256 doğrulanıyor…')
                 if final.stat().st_size==size and digest(final,cancel,progress)==sha:
+                    with final.open('rb') as stream:
+                        if stream.read(4) != b'GGUF':
+                            raise ValueError('Doğrulanan dosya GGUF biçiminde değil')
                     status('Model doğrulandı')
                     return final
                 raise ValueError('Aynı isimli dosya farklı; dosyayı taşıdıktan sonra yeniden dene')
             if not cached and partial.exists(): partial.unlink()
-            manifest.write_text(json.dumps(info),encoding='utf-8')
+            write_manifest(manifest, info)
             for attempt in range(ATTEMPTS):
                 if cancel.is_set(): raise InterruptedError('İndirme durduruldu; kısmi dosya korundu')
                 offset=partial.stat().st_size if partial.exists() else 0
@@ -176,10 +252,12 @@ def download_model(model, target: Path, cancel, progress=lambda *_: None, status
                         response.raise_for_status()
                         if offset and response.status_code==206:
                             match=re.fullmatch(r'bytes (\d+)-(\d+)/(\d+)',response.headers.get('content-range',''))
-                            if not match or int(match[1])!=offset or int(match[3])!=size or int(match[2])>=size: raise ValueError('Sunucu devam konumunu doğrulamadı')
+                            if not match or int(match[1])!=offset or int(match[3])!=size or not offset <= int(match[2]) < size: raise ValueError('Sunucu devam konumunu doğrulamadı')
                         elif response.status_code==200:
                             offset=0
                         else: raise ValueError('Beklenmeyen indirme yanıtı')
+                        if shutil.disk_usage(target).free < size-offset+128*1024*1024:
+                            raise OSError('İndirme için yeterli disk alanı yok')
                         with partial.open('ab' if offset else 'wb') as f:
                             for chunk in response.iter_bytes(1024*1024):
                                 if cancel.is_set(): raise InterruptedError('İndirme durduruldu; kısmi dosya korundu')
@@ -199,8 +277,8 @@ def download_model(model, target: Path, cancel, progress=lambda *_: None, status
                         if (fresh['sha256'], fresh['size']) != (sha, size):
                             partial.unlink(missing_ok=True)
                         info = fresh
-                        sha, size, revision = info['sha256'], info['size'], info['revision']
-                        manifest.write_text(json.dumps(info), encoding='utf-8')
+                        sha, size, revision = info['sha256'].lower(), info['size'], info['revision']
+                        write_manifest(manifest, info)
                         cached = None
                         continue
                     if not retryable(exc) or attempt==ATTEMPTS-1: raise
@@ -214,6 +292,8 @@ def download_model(model, target: Path, cancel, progress=lambda *_: None, status
                 if f.read(4)!=b'GGUF':
                     partial.unlink(missing_ok=True); manifest.unlink(missing_ok=True)
                     raise ValueError('Dosya GGUF değil; kaldırıldı')
+            if cancel.is_set():
+                raise InterruptedError('İndirme durduruldu; doğrulanan kısmi dosya korundu')
             partial.replace(final)
             manifest.replace(final.with_suffix(final.suffix + '.metadata.json'))
             LOG.info('Model download verified: %s / %s',repo,filename)

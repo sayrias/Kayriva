@@ -459,4 +459,8 @@ from .catalog_i18n import EN as CATALOG_EN
 EN.update({key: value for key, value in CATALOG_EN.items() if key not in EN})
 from .ui_i18n import EN as UI_EN
 EN.update(UI_EN)
+from .ui_beta2_i18n import EN as BETA2_EN
+EN.update(BETA2_EN)
+from .extensions_i18n import EN as EXTENSIONS_EN
+EN.update(EXTENSIONS_EN)
 TR = {english: turkish for turkish, english in EN.items()}

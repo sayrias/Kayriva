@@ -1,14 +1,15 @@
 from ..i18n import tr
+import re
 import math
 import time
 from PySide6.QtCore import QRect, Qt, Signal, QTimer, QUrl, QSize, QPropertyAnimation, QPoint, QEasingCurve, QEventLoop, QEvent
-from PySide6.QtGui import QDesktopServices, QPainter, QColor, QRadialGradient, QBrush, QPainterPath, QPen, QFontMetricsF, QTextCursor, QTextBlockFormat, QFont
+from PySide6.QtGui import QDesktopServices, QPainter, QColor, QRadialGradient, QBrush, QPainterPath, QPen, QFontMetricsF, QImage, QTextCursor, QTextBlockFormat, QFont
 from PySide6.QtWidgets import (
     QCompleter, QVBoxLayout, QHBoxLayout, QSizePolicy, QGraphicsOpacityEffect, QStyledItemDelegate, QStyle, QListView, QAbstractItemView
 )
 from .icons import icon
 from ..memory_units import GIB, MB, memory_text, memory_detail
-from .localized import QLineEdit, QSpinBox, QWidget, QFrame, QLabel, QPushButton, QCheckBox, QPlainTextEdit, QTextBrowser, QScrollArea, QSlider, QComboBox
+from .localized import QListWidget, QListWidgetItem, QLineEdit, QSpinBox, QWidget, QFrame, QLabel, QPushButton, QCheckBox, QPlainTextEdit, QTextBrowser, QScrollArea, QSlider, QComboBox
 
 
 
@@ -185,24 +186,78 @@ class ChoiceBox(QComboBox):
 
 
 class BrandPicker(ChoiceBox):
-    """One bounded, searchable list instead of an overflowing brand tab strip."""
+    """Read-only trigger; search belongs inside the bounded popup."""
     def __init__(self):
         super().__init__()
-        self.setEditable(True)
-        self.setLineEdit(QLineEdit())
-        self.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+        self.setEditable(False)
         self.setMinimumWidth(180)
         self.setMaximumWidth(260)
         self.setAccessibleName(tr('Model markası'))
-        self.lineEdit().setPlaceholderText(tr('Marka ara…'))
-        self.completer().setFilterMode(Qt.MatchFlag.MatchContains)
-        self.completer().setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
-        self.completer().setCompletionMode(QCompleter.CompletionMode.PopupCompletion)
-        self.completer().setMaxVisibleItems(8)
-        self.lineEdit().editingFinished.connect(self.restore_selection)
+        self.popup = QFrame(self, Qt.WindowType.Popup | Qt.WindowType.FramelessWindowHint)
+        self.popup.setObjectName('brandPopup')
+        layout = QVBoxLayout(self.popup)
+        layout.setContentsMargins(8,8,8,8)
+        layout.setSpacing(6)
+        self.search = QLineEdit()
+        self.search.setPlaceholderText(tr('Marka ara…'))
+        self.search.setClearButtonEnabled(True)
+        self.search.setAccessibleName(tr('Marka ara…'))
+        layout.addWidget(self.search)
+        self.results = QListWidget()
+        self.results.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        layout.addWidget(self.results)
+        self.search.textChanged.connect(self.filter_brands)
+        self.search.returnPressed.connect(self.choose_current)
+        self.results.itemClicked.connect(self.choose_item)
+        self.results.itemActivated.connect(self.choose_item)
+        self.search.installEventFilter(self)
 
-    def restore_selection(self):
-        self.setEditText(self.itemText(max(0, self.currentIndex())))
+    def filter_brands(self):
+        self.results.clear()
+        needle = self.search.text().casefold().strip()
+        selected = 0
+        for index in range(self.count()):
+            if needle and needle not in self.itemText(index).casefold():
+                continue
+            item = QListWidgetItem(self.itemText(index))
+            item.setData(Qt.ItemDataRole.UserRole, index)
+            if index == self.currentIndex():
+                selected = self.results.count()
+            self.results.addItem(item)
+        if self.results.count():
+            self.results.setCurrentRow(selected)
+
+    def choose_item(self, item):
+        if item:
+            self.setCurrentIndex(item.data(Qt.ItemDataRole.UserRole))
+            self.popup.hide()
+            self.setFocus()
+
+    def choose_current(self):
+        self.choose_item(self.results.currentItem())
+
+    def showPopup(self):
+        self.search.clear()
+        self.filter_brands()
+        self.popup.resize(max(240,self.width()), min(350, 60+self.count()*32))
+        point = self.mapToGlobal(QPoint(0,self.height()+5))
+        screen = self.screen().availableGeometry()
+        if point.y()+self.popup.height()>screen.bottom():
+            point.setY(self.mapToGlobal(QPoint(0,0)).y()-self.popup.height()-5)
+        point.setX(min(point.x(),screen.right()-self.popup.width()))
+        self.popup.move(point)
+        self.popup.show()
+        self.search.setFocus()
+
+    def hidePopup(self):
+        self.popup.hide()
+
+    def eventFilter(self, watched, event):
+        if watched is self.search and event.type()==QEvent.Type.KeyPress and event.key() in (Qt.Key.Key_Down,Qt.Key.Key_Up):
+            direction = 1 if event.key()==Qt.Key.Key_Down else -1
+            self.results.setCurrentRow(max(0,min(self.results.count()-1,self.results.currentRow()+direction)))
+            return True
+        return super().eventFilter(watched,event)
 
 
 class LayerControl(QWidget):
@@ -643,21 +698,20 @@ class ModelOption(QPushButton):
         self.clicked.connect(slot)
 
 
-class ActivityDetails(QScrollArea):
+class ActivityDetails(QFrame):
     """A compact timeline of actual reported stages, with readable explanations."""
+    changed = Signal()
+
     def __init__(self):
         super().__init__()
         self.setObjectName('activityDetails')
-        self.setWidgetResizable(True)
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.setFrameShape(QFrame.Shape.NoFrame)
-        self.content=QWidget();self.content.setObjectName('activityTimeline')
-        self.rows=QVBoxLayout(self.content)
-        self.rows.setContentsMargins(12,8,12,8)
-        self.rows.setSpacing(2)
+        self.rows=QVBoxLayout(self)
+        self.rows.setContentsMargins(0,8,0,8)
+        self.rows.setSpacing(8)
         self.rows.setAlignment(Qt.AlignmentFlag.AlignTop)
-        self.setWidget(self.content)
         self.activities=[]
+        self.expanded_keys=set()
+        self.expanded_groups=set()
 
     @staticmethod
     def explain(text):
@@ -697,38 +751,127 @@ class ActivityDetails(QScrollArea):
                 return title,detail
         return text.rstrip('….'),tr('Yerel işlem')
 
+    @staticmethod
+    def batches(activities):
+        """Keep public updates in place; compact adjacent operations underneath."""
+        result=[]
+        for index, entry in enumerate(activities):
+            if entry.get('kind') == 'message':
+                result.append({'kind':'message','entry':entry})
+            else:
+                if not result or result[-1]['kind'] != 'group':
+                    result.append({'kind':'group','key':'group:'+str(entry.get('key') or index),'entries':[]})
+                result[-1]['entries'].append(entry)
+        # Preparation may arrive on the status signal before the public update.
+        # Put that opening update first while retaining all operation details.
+        if result and result[0]['kind']=='group' and len(result)>1 and result[1]['kind']=='message':
+            if not any(e.get('kind') in {'tool','skill','integration'} for e in result[0]['entries']):
+                result[0],result[1]=result[1],result[0]
+                if len(result)>2 and result[2]['kind']=='group':
+                    result[1]['entries'].extend(result[2]['entries']);result.pop(2)
+        return result
+
+    @staticmethod
+    def group_title(entries):
+        actual=[e for e in entries if e.get('kind') in {'tool','skill','integration'}]
+        providers=list(dict.fromkeys(e.get('provider') for e in actual if e.get('provider')))
+        skills=list(dict.fromkeys(e.get('skill_name') or e.get('title','') for e in actual if e.get('kind')=='skill'))
+        names=[str(e.get('tool_name') or e.get('name') or e.get('title','')).casefold() for e in actual]
+        if providers:
+            return ', '.join(providers)+tr(' · entegrasyon işlemleri'), 'tools'
+        if skills:
+            return ', '.join(skills)+tr(' · beceri kullanımı'), 'book'
+        if any('workspace_write' in n or 'workspace_edit' in n or 'yazma' in n or 'write' in n for n in names):
+            return tr('Dosya okuma ve düzenleme'), 'file'
+        if any('workspace' in n or 'read' in n or 'okuma' in n for n in names):
+            return tr('Proje dosyalarını inceleme'), 'book'
+        if any('web' in n for n in names):
+            return tr('Web kaynaklarını araştırma'), 'globe'
+        if actual:return tr('Araç işlemleri'), 'tools'
+        return tr('Hazırlık ve model işlemleri'), 'clock'
+
     def set_activities(self, activities, state='running'):
-        self.activities=list(activities)
+        self.activities=list(activities)[-80:]
         while self.rows.count():
             item=self.rows.takeAt(0)
-            if item.widget():item.widget().deleteLater()
-        for i,entry in enumerate(self.activities):
-            row=QWidget();row.setObjectName('activityStep');row.setFixedHeight(42)
-            line=QHBoxLayout(row);line.setContentsMargins(0,0,0,0);line.setSpacing(9)
-            stamp=QLabel(Message.duration(entry['seconds']));stamp.setObjectName('activityTime');stamp.setFixedWidth(72)
-            line.addWidget(stamp)
-            mark=QLabel();mark.setFixedSize(19,19)
-            last=i==len(self.activities)-1
-            mark.setPixmap(icon('clock' if last and state=='running' else 'check' if not last or state=='complete' else 'stop','#b7a7ce' if last else '#77717f').pixmap(15,15))
-            line.addWidget(mark)
-            text=QVBoxLayout();text.setSpacing(1)
-            title,detail=self.explain(entry['text'])
-            heading=QLabel(title);heading.setObjectName('activityStepTitle')
-            heading.setToolTip(entry['text'])
-            note=QLabel(detail);note.setObjectName('activityStepHint')
-            note.setSizePolicy(QSizePolicy.Policy.Ignored,QSizePolicy.Policy.Preferred)
-            text.addWidget(heading);text.addWidget(note)
-            line.addLayout(text,1);self.rows.addWidget(row)
-        if not self.activities:
-            self.rows.addWidget(label(tr('Bu yanıt için işlem ayrıntısı kaydedilmemiş.'),'status'))
-        self.setFixedHeight(min(252,max(54,16+len(self.activities)*44)))
-        QTimer.singleShot(0,self.scroll_latest)
+            if item.widget():item.widget().hide();item.widget().deleteLater()
+        batches=self.batches(self.activities)
+        for batch_index,batch in enumerate(batches):
+            if batch['kind']=='message':
+                note=label(str(batch['entry'].get('text',''))[:6000],'activityNarrative')
+                note.setTextFormat(Qt.TextFormat.PlainText)
+                note.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+                self.rows.addWidget(note)
+                continue
+            entries=batch['entries'];key=batch['key']
+            group=QWidget();group.setObjectName('activityGroup')
+            box=QVBoxLayout(group);box.setContentsMargins(0,2,0,6);box.setSpacing(7)
+            title,glyph=self.group_title(entries)
+            running=state=='running' and batch_index==len(batches)-1
+            heading=QHBoxLayout();heading.setContentsMargins(0,0,0,0);heading.setSpacing(7)
+            toggle=button(title,icon_name=glyph);toggle.setObjectName('activityGroupToggle');toggle.setCheckable(True)
+            toggle.setChecked(key in self.expanded_groups)
+            toggle.setToolTip(tr('İşlem grubunu aç veya kapat'))
+            heading.addWidget(toggle,1)
+            actual_count=sum(e.get('kind') in {'tool','skill','integration'} for e in entries)
+            count=label(str(actual_count)+tr(' işlem') if actual_count else str(len(entries))+tr(' aşama'),'activityTime');count.setWordWrap(False);heading.addWidget(count)
+            arrow=button('',icon_name='chevron-down' if toggle.isChecked() else 'chevron-right');arrow.setObjectName('activityGroupArrow');arrow.setFixedSize(26,26)
+            heading.addWidget(arrow);arrow.clicked.connect(toggle.toggle)
+            box.addLayout(heading)
+            details=QScrollArea();details.setObjectName('activityGroupDetails');details.setFrameShape(QFrame.Shape.NoFrame);details.setWidgetResizable(True)
+            content=QWidget();rows=QVBoxLayout(content);rows.setContentsMargins(12,5,8,5);rows.setSpacing(6)
+            details.setWidget(content)
+            for index,entry in enumerate(entries):
+                line=QWidget();line.setObjectName('activityOperation')
+                layout=QVBoxLayout(line);layout.setContentsMargins(0,0,0,0);layout.setSpacing(5)
+                main=QHBoxLayout();main.setContentsMargins(0,0,0,0);main.setSpacing(8)
+                actual=entry.get('kind') in {'tool','skill','integration'}
+                entry_state=entry.get('state',state if index==len(entries)-1 and running else 'complete')
+                mark='clock' if entry_state=='running' and state=='running' else 'stop' if entry_state in {'failed','running'} else 'check'
+                marker=QLabel();marker.setFixedSize(16,23);marker.setPixmap(icon(mark,'#a6a4b6').pixmap(13,13));main.addWidget(marker)
+                if actual:
+                    event_key=str(entry.get('key') or index)
+                    control=button(str(entry.get('title') or entry.get('text','')),icon_name='chevron-down' if event_key in self.expanded_keys else 'chevron-right')
+                    control.setObjectName('activityTool');control.setCheckable(True);control.setChecked(event_key in self.expanded_keys)
+                    main.addWidget(control,1)
+                    payload=QPlainTextEdit();payload.setReadOnly(True);payload.setObjectName('activityPayload')
+                    payload.setPlainText(str(entry.get('detail',''))+ ('\n\n'+str(entry['summary']) if entry.get('summary') else ''))
+                    payload.setFixedHeight(min(180,max(88,40+payload.toPlainText().count('\n')*16)))
+                    payload.setVisible(event_key in self.expanded_keys)
+                    def expand(checked,k=event_key,field=payload,button=control,scroll=details,body=content):
+                        self.expanded_keys.add(k) if checked else self.expanded_keys.discard(k)
+                        field.setVisible(checked);button.setIcon(icon('chevron-down' if checked else 'chevron-right'))
+                        body.layout().invalidate();scroll.setFixedHeight(min(280,max(44,body.sizeHint().height()+6)))
+                        self.changed.emit()
+                    control.toggled.connect(expand)
+                else:
+                    text=label(str(entry.get('text','')),'activityStepHint');text.setTextFormat(Qt.TextFormat.PlainText);main.addWidget(text,1)
+                stamp=label(self.duration(entry.get('seconds',0)),'activityTime');stamp.setWordWrap(False);main.addWidget(stamp)
+                layout.addLayout(main)
+                if actual:layout.addWidget(payload)
+                rows.addWidget(line)
+            details.setFixedHeight(min(280,max(44,content.sizeHint().height()+6)))
+            details.setVisible(key in self.expanded_groups);box.addWidget(details)
+            def open_group(checked,k=key,section=details,chevron=arrow):
+                self.expanded_groups.add(k) if checked else self.expanded_groups.discard(k)
+                section.setVisible(checked);chevron.setIcon(icon('chevron-down' if checked else 'chevron-right'));self.changed.emit()
+            toggle.toggled.connect(open_group)
+            if running and entries:
+                latest=entries[-1]
+                status=label(str(latest.get('text') or latest.get('title','')),'activityStepHint')
+                status.setContentsMargins(25,0,0,0);status.setTextFormat(Qt.TextFormat.PlainText)
+                box.addWidget(status)
+            self.rows.addWidget(group)
+        if not self.activities:self.rows.addWidget(label(tr('Bu yanıt için işlem ayrıntısı kaydedilmemiş.'),'status'))
+        self.changed.emit()
 
-    def scroll_latest(self):
-        self.verticalScrollBar().setValue(self.verticalScrollBar().maximum())
+    @staticmethod
+    def duration(seconds):
+        seconds=max(0,int(seconds))
+        return str(seconds//60)+tr(' dk ')+str(seconds%60)+tr(' sn') if seconds>=60 else str(seconds)+tr(' sn')
 
     def toPlainText(self):
-        return '\n'.join(Message.duration(a['seconds'])+' · '+a['text'] for a in self.activities)
+        return '\n'.join(self.duration(a.get('seconds',0))+' · '+a.get('text',a.get('title','')) for a in self.activities)
 
 
 def card():
@@ -741,7 +884,61 @@ def card():
 
 
 class Input(QPlainTextEdit):
+    height_changed = Signal(int)
     send = Signal()
+    image_pasted = Signal(object)
+    files_pasted = Signal(object)
+
+    def __init__(self):
+        super().__init__()
+        self.height_limit = 330
+        self.setAcceptDrops(True)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.textChanged.connect(self.schedule_fit)
+        self.document().documentLayout().documentSizeChanged.connect(self.schedule_fit)
+        self.schedule_fit()
+
+    def set_height_limit(self, limit):
+        self.height_limit = max(140,min(440,int(limit)))
+        self.schedule_fit()
+
+    def schedule_fit(self, *args):
+        if not getattr(self,'fit_pending',False):
+            self.fit_pending=True
+            QTimer.singleShot(0,self.fit_content)
+
+    def fit_content(self):
+        self.fit_pending=False
+        block=self.document().begin()
+        height=0
+        while block.isValid():
+            height+=self.blockBoundingRect(block).height()
+            block=block.next()
+        desired=max(78, int(height+self.document().documentMargin()*2+12))
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded if desired>self.height_limit else Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        target=min(self.height_limit,desired)
+        if self.height()!=target:
+            self.setFixedHeight(target)
+            self.height_changed.emit(target)
+
+    def resizeEvent(self,event):
+        super().resizeEvent(event)
+        self.schedule_fit()
+
+    def canInsertFromMimeData(self,source):
+        return source.hasImage() or source.hasUrls() or super().canInsertFromMimeData(source)
+
+    def insertFromMimeData(self,source):
+        paths=[url.toLocalFile() for url in source.urls() if url.isLocalFile()] if source.hasUrls() else []
+        if paths:
+            self.files_pasted.emit(paths)
+        elif source.hasImage():
+            value=source.imageData()
+            image=value.toImage() if hasattr(value,'toImage') else QImage(value)
+            if not image.isNull():
+                self.image_pasted.emit(image)
+        else:
+            super().insertFromMimeData(source)
 
     def keyPressEvent(self, event):
         if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter) and not event.modifiers() & Qt.KeyboardModifier.ShiftModifier:
@@ -753,6 +950,7 @@ class Input(QPlainTextEdit):
 class Message(QFrame):
     rendered = Signal()
     sources_requested = Signal(object)
+    resume_requested = Signal()
 
     def __init__(self, role, text=""):
         super().__init__()
@@ -793,6 +991,7 @@ class Message(QFrame):
             layout.addWidget(self.activity_divider)
             self.activity_details = ActivityDetails()
             self.activity_details.hide()
+            self.activity_details.changed.connect(lambda: QTimer.singleShot(0,self.refresh))
             layout.addWidget(self.activity_details)
         self.view = QTextBrowser()
         self.view.setObjectName('messageText')
@@ -807,6 +1006,10 @@ class Message(QFrame):
             self.error_label = label('', 'status')
             self.error_label.hide()
             layout.addWidget(self.error_label)
+            self.resume_button=button(tr('Çalışmaya devam et'),self.resume_requested.emit,icon_name='play')
+            self.resume_button.setObjectName('resumeTask')
+            self.resume_button.hide()
+            layout.addWidget(self.resume_button,alignment=Qt.AlignmentFlag.AlignLeft)
             self.footer = QWidget()
             self.footer.setObjectName('messageActions')
             actions = QHBoxLayout(self.footer)
@@ -859,17 +1062,52 @@ class Message(QFrame):
         self.running=True
         self.started=time.monotonic()
         self.display_mode=display_mode
+        self.activity_details.show()
+        self.activity_button.setIcon(icon('chevron-down'))
+        self.resume_button.hide()
         self.footer.hide()
         self.set_activity(tr('Hazırlanıyor…'))
         self.progress_timer.start()
         self.refresh()
 
+    @staticmethod
+    def bounded_activities(activities):
+        if len(activities)<=80:return activities
+        opening=next((a for a in activities if a.get('kind')=='message' and (a.get('origin')=='assistant' or str(a.get('key','')).startswith('update-round-'))),None)
+        if opening is None:opening=next((a for a in activities if a.get('kind')=='message'),None)
+        tail=activities[-79:]
+        return [opening,*tail] if opening is not None and opening not in tail else activities[-80:]
+
     def set_activity(self, text):
         self.stage=text
-        if not self.live_activities or self.live_activities[-1]['text']!=text:
-            self.live_activities.append({'text':text,'seconds':time.monotonic()-self.started})
+        waiting=re.sub(r' · \d+ (?:sn|s)(?: ·.*)?$', '',str(text))
+        entry={'text':text,'seconds':time.monotonic()-self.started}
+        prior=next((a for a in reversed(self.live_activities) if a.get('kind')=='waiting' and a.get('key')==waiting),None) if waiting!=text else None
+        if prior:
+            prior.update(entry)
+        elif not self.live_activities or self.live_activities[-1]['text']!=text:
+            if waiting!=text:entry.update(kind='waiting',key=waiting)
+            self.live_activities.append(entry)
+        self.live_activities=self.bounded_activities(self.live_activities)
         self.activity_details.set_activities(self.live_activities)
+        self.activity_details.show()
+        self.activity_button.setIcon(icon('chevron-down'))
         self.update_progress()
+        self.refresh()
+
+    def add_activity(self,event):
+        entry=dict(event)
+        entry.setdefault('text',entry.get('title',''))
+        entry.setdefault('seconds',time.monotonic()-self.started)
+        key=entry.get('key')
+        existing=next((i for i,a in enumerate(self.live_activities) if key and a.get('key')==key),None)
+        if existing is None:
+            self.live_activities.append(entry)
+        else:
+            self.live_activities[existing]=entry
+        self.live_activities=self.bounded_activities(self.live_activities)
+        self.activity_details.set_activities(self.live_activities)
+        self.activity_details.show()
         self.refresh()
 
     def update_progress(self):
@@ -887,6 +1125,9 @@ class Message(QFrame):
         self.activity_button.setText(duration+{'complete':tr(' çalıştı'),'cancelled':tr(' · durduruldu'),'failed':tr(' · tamamlanamadı'),'limited':tr(' · çalışma sınırına ulaşıldı')}.get(state,tr(' çalıştı')) if self.metadata else tr('Yanıt'))
         activity=self.metadata.get('activities',[])
         self.activity_details.set_activities(activity,state)
+        self.activity_details.setVisible(state in {'cancelled','failed','limited'})
+        self.activity_button.setIcon(icon('chevron-down' if state in {'cancelled','failed','limited'} else 'chevron-right'))
+        self.resume_button.setVisible(state in {'cancelled','limited'})
         error=self.metadata.get('error','')
         self.error_label.setText(tr('Yanıt tamamlanamadı: ')+error if error else (tr('Yanıt durduruldu.') if state=='cancelled' and not self.text else ''))
         self.error_label.setVisible(bool(self.error_label.text()))
@@ -897,7 +1138,7 @@ class Message(QFrame):
         self.refresh()
 
     def toggle_activity(self):
-        expanded = self.activity_details.isHidden()
+        expanded = True if self.running else self.activity_details.isHidden()
         self.activity_details.setVisible(expanded)
         self.activity_button.setIcon(icon('chevron-down' if expanded else 'chevron-right'))
         self.activity_button.setAccessibleDescription(tr('İşlem ayrıntıları açık') if expanded else tr('İşlem ayrıntılarını aç'))
@@ -906,6 +1147,17 @@ class Message(QFrame):
     def select_text(self):
         self.view.setFocus()
         self.view.selectAll()
+
+    def set_attachments(self, descriptors, runtime):
+        from .image_viewer import attachment_path, AttachmentImage
+        row=QHBoxLayout();row.setSpacing(10)
+        for descriptor in descriptors[:4]:
+            path=attachment_path(runtime,descriptor)
+            if path:
+                row.addWidget(AttachmentImage(path,descriptor.get('name',tr('Görsel'))))
+        row.addStretch()
+        self.layout().insertLayout(0,row)
+        self.refresh()
 
     def save_text(self):
         from pathlib import Path

@@ -1,6 +1,6 @@
 # Application updates
 
-Kayriva `1.0.0-beta.1` includes a release checker, verified package staging, an optional differential update format, and a deferred installer. The configured public source is **`sayrias/Kayriva`**, as chosen by the maintainer. At implementation time the repository returned 404; no repository or release was created by these changes. A missing repository/release produces a readable status and leaves the installation untouched.
+Kayriva includes a release checker, verified package staging, an optional differential update format, and a deferred installer. The configured public source is **`sayrias/Kayriva`**, as chosen by the maintainer. A missing repository/release produces a readable status and leaves the installation untouched.
 
 ## Checking and channels
 
@@ -27,10 +27,10 @@ Minimal manifest:
 ```json
 {
   "schema": 1,
-  "version": "1.0.0-beta.1",
+  "version": "1.0.0-beta.2",
   "files": [
     {
-      "name": "Kayriva",
+      "name": "Kayriva-x86_64.AppImage",
       "platform": "linux",
       "arch": "x86_64",
       "kind": "portable",
@@ -49,7 +49,7 @@ Minimal manifest:
 }
 ```
 
-The example sizes are illustrative. The builder computes real values from the final artifacts. The release tag should be `v1.0.0-beta.1`; its normalized version must match the manifest. Supported target keys are `linux`/`windows` and `x86_64`/`aarch64`. Only publish architectures that have actually been built and validated; merely listing an architecture does not produce its executable.
+The example sizes are illustrative. The builder computes real values from the final artifacts. The release tag should be `v1.0.0-beta.2`; its normalized version must match the manifest. Supported target keys are `linux`/`windows` and `x86_64`/`aarch64`. Only publish architectures that have actually been built and validated; merely listing an architecture does not produce its executable.
 
 Build both platforms and run the release command:
 
@@ -65,7 +65,7 @@ Equivalent backend invocation:
 
 ```bash
 PYTHONPATH=src python3 -m ai_studio.updater manifest \
-  --version 1.0.0-beta.1 \
+  --version 1.0.0-beta.2 \
   --output dist/update-manifest.json \
   --artifact linux:x86_64:portable=dist/linux/Kayriva \
   --artifact windows:x86_64:installer=dist/windows/Kayriva-Setup.exe

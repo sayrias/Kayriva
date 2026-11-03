@@ -28,7 +28,7 @@ kayriva.sh    Launch, test and package
 
 | Platform | Single file to distribute | Notes |
 | --- | --- | --- |
-| **Linux** | `dist/linux/Kayriva` | Includes Python/Qt and the MCP bridge. Requires compatible system libraries/ABI; rebuild on an older target distribution when necessary. |
+| **Linux** | `dist/linux/Kayriva-x86_64.AppImage` | Includes Python/Qt and the MCP bridge. Requires compatible system libraries/ABI; rebuild on an older target distribution when necessary. |
 | **Windows x64** | `dist/windows/Kayriva-Setup.exe` | Installs shortcuts and an uninstaller without requiring administrator privileges. |
 
 Windows builds require **Wine, winepath and curl** on the build host. Initial setup installs official Python, pinned PySide6 and Inno Setup into the project's `build/wine-prefix`. A Qt DLL loading check runs before packaging. Build logs are stored in `build/linux/` and `build/windows/`. `clean` removes build output while preserving the prepared Wine environment.
@@ -60,12 +60,12 @@ The portable Linux executable registers a user-level application entry and a per
 To explicitly register the packaged executable without opening its window:
 
 ```bash
-./Kayriva --install-desktop
+./Kayriva-x86_64.AppImage --install-desktop
 ```
 
-The build and the packaged application's first normal launch also register a dedicated file type for the published **Kayriva** filename. KDE/GNOME file managers can then display **Kayriva application** and its icon directly on the portable file, independently of the application-menu entry. The binary bytes remain ordinary ELF; no executable headers or system-wide executable icons are patched. Keep the published `Kayriva` filename for this file-type association.
+The build and the packaged application's first normal launch also register a dedicated file type for the published **Kayriva-x86_64.AppImage** filename. KDE/GNOME file managers can then display **Kayriva application** and its icon directly on the portable file, independently of the application-menu entry. The file is a real Type 2 AppImage with an embedded SquashFS AppDir, desktop entry and icon; system-wide executable icons are not changed. Keep the published `Kayriva-x86_64.AppImage` filename for this file-type association.
 
-This uses a user-level Shared MIME definition in `mime/packages/io.github.sayrias.Kayriva.xml` and the system `update-mime-database` utility. Existing user MIME definitions are preserved. If the utility is unavailable, menu/window integration still works and the file type will be registered on a later launch when available. A recipient must run the application once to install this local metadata; a downloaded raw ELF cannot carry a universal file-manager icon by itself. Refresh an already open folder after registration.
+This uses a user-level Shared MIME definition in `mime/packages/io.github.sayrias.Kayriva.xml` and the system `update-mime-database` utility. Existing user MIME definitions are preserved. If the utility is unavailable, menu/window integration still works and the file type will be registered on a later launch when available. A recipient must run the application once to install this local metadata; automatic file icon display before first launch depends on the file manager’s AppImage support. Refresh an already open folder after registration.
 
 For builds in CI or a restricted sandbox, `KAYRIVA_SKIP_FILE_ICON=1 ./kayriva.sh build` skips host icon registration without changing the packaged application's first-launch behavior.
 

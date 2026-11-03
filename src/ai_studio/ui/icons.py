@@ -5,6 +5,8 @@ from PySide6.QtGui import QIcon, QPixmap, QPainter
 from PySide6.QtSvg import QSvgRenderer
 
 PATHS = {
+    "image": '<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="1.5"/><path d="m3 17 5-5 4 4 4-6 5 7"/>',
+    "minus": '<path d="M5 12h14"/>',
     "chat": '<path d="M5 4h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-6 4V6a2 2 0 0 1 2-2Z"/>',
     "search": '<circle cx="10" cy="10" r="7"/><path d="m15 15 6 6"/>',
     "pin": '<path d="m9 3 8 0-2 6 4 4H5l4-4ZM12 13v8"/>',

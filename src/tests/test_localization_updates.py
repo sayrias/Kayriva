@@ -240,22 +240,25 @@ class LocalizationUpdatesTests(unittest.TestCase):
         layers.deleteLater()
         picker = self.window.model_brands
         self.assertEqual(picker.count(), 19)
-        picker.completer().setCompletionPrefix('vid')
-        self.assertEqual(picker.completer().completionCount(), 1)
-        self.assertEqual(picker.completer().currentCompletion(), 'NVIDIA')
-        self.assertLessEqual(picker.view().maximumHeight(), 330)
+        self.assertFalse(picker.isEditable())
+        picker.showPopup()
+        picker.search.setText('vid')
+        self.assertEqual(picker.results.count(),1)
+        self.assertEqual(picker.results.item(0).text(),'NVIDIA')
+        self.assertLessEqual(picker.popup.height(),350)
+        picker.hidePopup()
 
     def test_extension_filters_keep_selection_and_require_credentials_before_enable(self):
         from ai_studio.extension_library import requirement
         panel = ExtensionBrowser(self.window)
         panel.type_filter.setCurrentIndex(panel.type_filter.findData('remote'))
-        self.assertEqual(panel.list.count(), 7)
+        self.assertEqual(panel.list.count(), sum(e['kind']=='http' and not e.get('local_http') for e in panel.library.entries))
         panel.list.setCurrentRow(2)
         chosen = panel.selected_entry['id']
         panel.refresh()
         self.assertEqual(panel.selected_entry['id'], chosen)
         panel.type_filter.setCurrentIndex(panel.type_filter.findData('local'))
-        self.assertEqual(panel.list.count(), 10)
+        self.assertEqual(panel.list.count(), sum(e['kind']!='http' or bool(e.get('local_http')) for e in panel.library.entries))
         panel.search.setText('Brave')
         self.assertEqual(panel.selected_entry['id'], 'brave-search')
         panel.enable.setChecked(True)
